@@ -1,0 +1,225 @@
+{
+  "extensionVersion": "1.3.9",
+  "fileName": "/home/kti8rt/bluej/hdl/dump.vcd",
+  "markerTime": 2436,
+  "altMarkerTime": null,
+  "selectedSignal": {
+    "name": "main.top.dut.RST_N",
+    "numberFormat": "binary",
+    "msb": -1,
+    "lsb": -1
+  },
+  "zoomRatio": 2,
+  "scrollLeft": 3873.5,
+  "displayedSignals": [
+    {
+      "dataType": "signal-group",
+      "groupName": "JTAG Signals",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 874,
+          "name": "main.top.dut.RST_N",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 877,
+          "name": "main.top.dut.CLK",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 1005,
+          "name": "main.top.tap.TMS",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 1004,
+          "name": "main.top.tap.TDI",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 1070,
+          "name": "main.top.tap.TDO",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "Instruction Reg",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 1079,
+          "name": "main.top.tap.ifc_jtagIR_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 1078,
+          "name": "main.top.tap.ifc_jtagIR_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "REG0",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 744,
+          "name": "main.top.reg0_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 743,
+          "name": "main.top.reg0_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "BYPASS",
+      "children": []
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "JTAG Bus Control",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 879,
+          "name": "main.top.dut.ifc_jrg_bus_ctrl_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 878,
+          "name": "main.top.dut.ifc_jrg_bus_ctrl_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 856,
+      "name": "main.top.dut.jtag_bus_ctrl_ctrl_capture_b",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 860,
+      "name": "main.top.dut.jtag_bus_ctrl_ctrl_update_b",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 863,
+      "name": "main.top.dut.jtag_bus_ctrl_wr_o",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 927,
+      "name": "main.top.dut.ifc_f_sync_resp.dDEQ",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 881,
+      "name": "main.top.dut.ifc_jrg_ctrl_i",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 948,
+      "name": "main.top.dut.ifc_f_sync_resp.dDoutReg",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 8,
+      "name": "main.top.CLK",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 740,
+      "name": "main.top.rCount",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 742,
+      "name": "main.top.rOut",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    }
+  ]
+}

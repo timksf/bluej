@@ -1,0 +1,115 @@
+{
+  "extensionVersion": "1.3.9",
+  "fileName": "/home/kti8rt/bluej/hdl/dump.vcd",
+  "markerTime": 542919,
+  "altMarkerTime": null,
+  "selectedSignal": {
+    "name": "main.top.tap_ifc_jtagIDCode_i_rSR",
+    "numberFormat": "hexadecimal",
+    "msb": 31,
+    "lsb": 0
+  },
+  "zoomRatio": 7.087864121997991,
+  "scrollLeft": 3847784.561446443,
+  "displayedSignals": [
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 189,
+      "name": "main.top.bus_clk.CLK_OUT",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 172,
+      "name": "main.top.tap_ifc_jtagIDCode_i_rSR",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 164,
+      "name": "main.top.jtag_stim_tms_in",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 136,
+      "name": "main.top.\\oocd_driver_tck$wget",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 134,
+      "name": "main.top.\\oocd_driver_tms$wget",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 135,
+      "name": "main.top.\\oocd_driver_tdi$wget",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 69,
+      "name": "main.top.\\oocd_driver_tdo$wget",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 201,
+      "name": "main.top.jtag_stim_jtag_clk_tck_clock.CLK_OUT",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 179,
+      "name": "main.top.tap_ifc_tdo_out",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 72,
+      "name": "main.top.\\tap_ifc_bwTDI$wget",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 178,
+      "name": "main.top.tap_ifc_tap_fsm_rState",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    }
+  ]
+}

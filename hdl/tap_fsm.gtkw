@@ -1,0 +1,39 @@
+[*]
+[*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
+[*] Fri Aug  8 17:34:28 2025
+[*]
+[dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
+[dumpfile_mtime] "Fri Aug  8 17:31:09 2025"
+[dumpfile_size] 43272
+[savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_fsm.gtkw"
+[timestart] 398
+[size] 2560 1393
+[pos] -1 -1
+*-5.681107 509 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] main.
+[treeopen] main.top.
+[sst_width] 333
+[signals_width] 246
+[sst_expanded] 1
+[sst_vpaned_height] 433
+@28
+main.top.CLK
+@24
+main.top.rCount[31:0]
+@2022
+^1 /home/tim/Documents/HardwareDescription/bluej/hdl/tap_states.txt
+main.top.dut_tap_fsm_rState[3:0]
+@28
+main.top.jtag_stim_jtag_clk_trst.OUT_RST
+main.top.jtag_stim_jtag_clk_tck_clock.CLK_OUT
+main.top.\dut_tap_fsm_bwTMS$wget
+main.top.\dut_bwTDI$wget
+@22
+main.top.dut_jtagIR_rHR[7:0]
+@28
+main.top.dut_jtagIR_rSR[7:0]
+@2023
+^1 /home/tim/Documents/HardwareDescription/bluej/hdl/tap_states.txt
+main.top.\dut_tap_fsm_next$wget[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

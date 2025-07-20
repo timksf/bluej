@@ -1,47 +1,116 @@
 package JTAG_Reg;
 
-interface JTAG_Reg_ifc#(numeric type w);
+import BUtils :: *;
+import DReg :: *;
 
-    method Bit#(1) tdo();
-    method Bit#(w) reg_o();
-    
+import JTAG_Types :: *;
+
+typedef union tagged {
+    void NoReset;
+    t WithReset;
+} JTAG_Reg_Reset#(type t) deriving(Eq, Bits);
+
+interface JTAG_Reg_ifc#(type t);
+
+    method t reg_o();
+    method Bool wr_o();
     method Action tdi(Bit#(1) t);
-    method Action capture(Bool v);
-    method Action shift(Bool v);
-    method Action update(Bool v);
+    method Bit#(1) tdo();
+
+    interface JTAG_Ctrl_Dn_ifc ctrl;
 
 endinterface
 
-module mkJTAGReg#(Bit#(w) reg_i)(JTAG_Reg_ifc#(w));
+module mkJTAGReg#(t reg_i)(JTAG_Reg_ifc#(t)) provisos(Bits#(t, w), Add#(1, a__, w));
+    let i <- mkJTAGRegR(reg_i, tagged NoReset);
+    return i;
+endmodule
 
-    Reg#(Bit#(w)) rSR   <- mkRegU;
-    Reg#(Bit#(w)) rHR   <- mkRegU;
+module mkJTAGRegR#(t reg_i, JTAG_Reg_Reset#(t) r)(JTAG_Reg_ifc#(t)) provisos(Bits#(t, w), Add#(1, a__, w));
 
-    Wire#(Bit#(1))  dwTDO       <- mkDWire(0);
+    Reg#(Bit#(w)) rSR <- mkRegU;
+    Reg#(Bit#(w)) rHR;
+    if(r matches tagged WithReset .rst_v)
+        rHR   <- mkReg(pack(rst_v));
+    else
+        rHR   <- mkRegU;
+
     Wire#(Bit#(1))  bwTDI       <- mkBypassWire;
     Wire#(Bool)     bwCapture   <- mkBypassWire;
     Wire#(Bool)     bwShift     <- mkBypassWire;
     Wire#(Bool)     bwUpdate    <- mkBypassWire;
+    Wire#(Bool)     bwSelect    <- mkBypassWire;
 
-    rule rshift if(bwShift);
-        rSR <= {bwTDI, rSR[valueof(w)-1:1]};
-        dwTDO <= rSR[0];
+    Reg#(Bool)      rWR         <- mkDReg(False);
+
+    //the wires activating each rule are derived from different fsm states so cannot be active at the same time
+
+    (* mutually_exclusive ="rshift, rcapture" *)
+    rule rshift if(bwShift && bwSelect);
+        rSR <= {bwTDI, rSR[valueof(w)-1:1]}; //requires proviso
     endrule
 
-    rule rcapture if(bwCapture);
-        rSR <= reg_i;
+    (* mutually_exclusive ="rcapture, rupdate" *)
+    rule rcapture if(bwCapture && bwSelect);
+        rSR <= pack(reg_i);
     endrule
 
-    rule rupdate if(bwUpdate);
+    (* mutually_exclusive ="rshift, rupdate" *)
+    rule rupdate if(bwUpdate && bwSelect);
+        rHR <= rSR;
+        rWR <= True;
+    endrule
+
+    method reg_o    = unpack(rHR);
+    method wr_o     = rWR; //indicate update after shift
+    method tdi      = bwTDI._write;
+    method tdo      = rSR[0];
+    
+    interface JTAG_Ctrl_Dn_ifc ctrl;
+        method capture  = bwCapture._write;
+        method shift    = bwShift._write;
+        method update   = bwUpdate._write;
+        method sel      = bwSelect._write;
+    endinterface
+endmodule
+
+module mkJTAGBypass(JTAG_Reg_ifc#(Bit#(1)));
+
+    Reg#(Bit#(1)) rSR   <- mkRegU;
+    Reg#(Bit#(1)) rHR   <- mkRegU;
+
+    Wire#(Bit#(1))  bwTDI       <- mkBypassWire;
+    Wire#(Bool)     bwCapture   <- mkBypassWire;
+    Wire#(Bool)     bwShift     <- mkBypassWire;
+    Wire#(Bool)     bwUpdate    <- mkBypassWire;
+    Wire#(Bool)     bwSelect    <- mkBypassWire;
+
+    (* mutually_exclusive ="rshift, rcapture" *)
+    rule rshift if(bwShift && bwSelect);
+        rSR <= bwTDI;
+    endrule
+
+    (* mutually_exclusive ="rcapture, rupdate" *)
+    rule rcapture if(bwCapture && bwSelect);
+        rSR <= 0;
+    endrule
+    
+    (* mutually_exclusive ="rshift, rupdate" *)
+    rule rupdate if(bwUpdate && bwSelect);
         rHR <= rSR;
     endrule
 
-    method tdo      = dwTDO;
     method reg_o    = rHR;
-
+    method wr_o     = bwSelect && bwUpdate; //indicate update after shift
     method tdi      = bwTDI._write;
-    method capture  = bwCapture._write;
-    method shift    = bwShift._write;
-    method update   = bwUpdate._write;
+    method tdo      = rSR;
+
+    interface JTAG_Ctrl_Dn_ifc ctrl;
+        method capture  = bwCapture._write;
+        method shift    = bwShift._write;
+        method update   = bwUpdate._write;
+        method sel      = bwSelect._write;
+    endinterface
+endmodule
 
 endpackage
