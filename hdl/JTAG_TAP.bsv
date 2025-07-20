@@ -132,12 +132,12 @@ module mkJTAG_TAP_Controller#(
     Reg#(JTAGInstruction#(w)) rIR <- mkReg(ir_rst);
     Vector#(n, Wire#(Bool)) vSelect <- replicateM(mkDWire(False));
 
-    rule rir;
-        if(tap_fsm.jtag_ctrl.capture_ir)
-            rIR <= extend('b01); //load with predefined value
-        else if(tap_fsm.jtag_ctrl.shift_ir)
-        else if(tap_fsm.jtag_ctrl.update_ir)
-    endrule
+    // rule rir;
+    //     if(tap_fsm.jtag_ctrl.capture_ir)
+    //         rIR <= extend('b01); //load with predefined value
+    //     else if(tap_fsm.jtag_ctrl.shift_ir)
+    //     else if(tap_fsm.jtag_ctrl.update_ir)
+    // endrule
 
     rule rsel;
         for(Integer i = 0; i < valueof(n); i = i + 1) begin
