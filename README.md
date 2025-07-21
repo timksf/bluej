@@ -1,0 +1,1 @@
+<img src="assets/riscv_debug.drawio.png" width=500>
