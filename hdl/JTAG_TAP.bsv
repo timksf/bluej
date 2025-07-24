@@ -2,10 +2,10 @@ package JTAG_TAP;
 
 import Vector :: *;
 import GetPut :: *;
+import Connectable :: *;
 
-typedef Bit#(w) JTAGInstruction_t#(numeric type w);
-
-typedef Vector#(n, JTAGInstruction#(w)) JTAG_TAP_Config_t#(numeric type n, numeric type w);
+import JTAG_Types :: *;
+import JTAG_Reg :: *;
 
 typedef enum {
     TestLogicReset,
@@ -124,17 +124,17 @@ module mkJTAG_TAP_Controller#(
     JTAG_TAP_Config_t#(n, w) tap_cfg,
     JTAGInstruction_t#(w) instr_idcode,
     Bool reset_idcode_not_bypass
-    )(JTAG_TAP_Controller_ifc#(n));
+    )(JTAG_TAP_Controller_ifc#(n)) provisos(Add#(1, a__, w));
     
     //IR has to be reset to IDCODE/BYPASS
     //BYPASS has to be identified at least with all 1's
-    JTAGInstruction_t instr_bypass = unpack(-1);
-    JTAGInstruction_t ir_rst = reset_idcode_not_bypass ? instr_idcode : instr_bypass;
+    JTAGInstruction_t#(w) instr_bypass = unpack(-1);
+    JTAGInstruction_t#(w) ir_rst = reset_idcode_not_bypass ? instr_idcode : instr_bypass;
 
     let tap_fsm <- mkJTAG_TAP_FSM();
     
     JTAG_Reg_ifc#(w) jtagIR <- mkJTAGReg(ir_rst);
-    JTAG_Reg_ifc#(1) jtagBypass <- mkJTAGReg();
+    JTAG_Reg_ifc#(1) jtagBypass <- mkJTAGBypass();
     JTAG_Reg_ifc#(10) jtagIDCode <- mkJTAGReg({'b010010011, 1'b1}); //idcode is required to have a 1 as LSB
     Vector#(n, Wire#(Bool)) vSelect <- replicateM(mkDWire(False));
     Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
@@ -145,31 +145,25 @@ module mkJTAG_TAP_Controller#(
     Bool id_sel = pack(readVReg(vSelect)) == 0 && jtagIR.reg_o() == 0;
     Bool byp_sel = pack(readVReg(vSelect)) == 0 && jtagIR.reg_o() == pack(instr_bypass);
 
-    Bool scan_ir = tap_fsm.capture_ir || tap_fsm.shift_ir || tap_fsm.update_ir;
-    Bool scan_dr = tap_fsm.capture_dr || tap_fsm.shift_dr || tap_fsm.update_dr;
+    Bool scan_ir = tap_fsm.jtag_ctrl.capture_ir || tap_fsm.jtag_ctrl.shift_ir || tap_fsm.jtag_ctrl.update_ir;
+    Bool scan_dr = tap_fsm.jtag_ctrl.capture_dr || tap_fsm.jtag_ctrl.shift_dr || tap_fsm.jtag_ctrl.update_dr;
     
-    mkConnection(jtagIR.capture, tap_fsm.capture_ir);
-    mkConnection(jtagIR.shift, tap_fsm.shift_ir);
-    mkConnection(jtagIR.update, tap_fsm.update_ir);
+    mkConnection(jtagIR.capture, tap_fsm.jtag_ctrl.capture_ir);
+    mkConnection(jtagIR.shift, tap_fsm.jtag_ctrl.shift_ir);
+    mkConnection(jtagIR.update, tap_fsm.jtag_ctrl.update_ir);
+    mkConnection(jtagIR.tdi, bwTDI);
 
-    mkConnection(jtagBypass.capture, tap_fsm.capture_dr);
-    mkConnection(jtagBypass.shift, tap_fsm.shift_dr);
-    mkConnection(jtagBypass.update, tap_fsm.update_dr);
+    mkConnection(jtagBypass.capture, tap_fsm.jtag_ctrl.capture_dr);
+    mkConnection(jtagBypass.shift, tap_fsm.jtag_ctrl.shift_dr);
+    mkConnection(jtagBypass.update, tap_fsm.jtag_ctrl.update_dr);
+    mkConnection(jtagBypass.tdi, bwTDI);
+    mkConnection(jtagBypass.sel, byp_sel);
 
-    mkConnection(jtagIDCode.capture, tap_fsm.capture_dr);
-    mkConnection(jtagIDCode.shift, tap_fsm.shift_dr);
-    mkConnection(jtagIDCode.update, tap_fsm.update_dr);
-
-    //IR
-    rule rirtdi;
-        if(scan_ir)
-            jtagIR.tdi(bwTDI);
-    endrule
-
-    //IDCODE
-    rule ridcode;
-        if(id_sel)
-    endrule
+    mkConnection(jtagIDCode.capture, tap_fsm.jtag_ctrl.capture_dr);
+    mkConnection(jtagIDCode.shift, tap_fsm.jtag_ctrl.shift_dr);
+    mkConnection(jtagIDCode.update, tap_fsm.jtag_ctrl.update_dr);
+    mkConnection(jtagIDCode.tdi, bwTDI);
+    mkConnection(jtagIDCode.sel, id_sel);
 
     //instruction decoder based on IR hold register
     rule rdecode;
@@ -180,20 +174,20 @@ module mkJTAG_TAP_Controller#(
 
     //tdo mux
     method Bit#(1) tdo();
-        Bit#(1) tdo = 0;
+        Bit#(1) tdo_ = 0;
         if(id_sel) 
-            tdo = jtagIDCode.tdo();
+            tdo_ = jtagIDCode.tdo();
         else if(byp_sel)
-            tdo = jtagBypass.tdo();
+            tdo_ = jtagBypass.tdo();
         else
             for(Integer i = 0; i < valueof(n); i = i + 1)
                 if(vSelect[i])
-                    tdo = vTDO_up[i];
-        return tdo;
+                    tdo_ = vTDO_up[i];
+        return tdo_;
     endmethod
 
     method tdi = bwTDI._write;
-
+    method tms = tap_fsm.tms;
     interface tdo_up = map(toPut, map(asReg, vTDO_up));
     interface select = readVReg(vSelect);
     interface jtag_ctrl = tap_fsm.jtag_ctrl;
