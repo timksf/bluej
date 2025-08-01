@@ -165,6 +165,10 @@ module mkJTAG_TAP_Controller#(
     mkConnection(jtagIDCode.tdi, bwTDI);
     mkConnection(jtagIDCode.sel, id_sel);
 
+    rule rir;
+        jtagIR.sel(True);
+    endrule
+
     //instruction decoder based on IR hold register
     rule rdecode;
         for(Integer i = 0; i < valueof(n); i = i + 1) begin
