@@ -1,13 +1,14 @@
 NAME=Testbench
 MOD=$(NAME) #only change if top module name is different from file name
 
-BSC_FLAGS+=-aggressive-conditions -no-warn-action-shadowing
+BSC_FLAGS+=-aggressive-conditions -no-warn-action-shadowing -keep-inlined-boundaries
 
 # -remove-dollar
 
 dirs:
 	mkdir -p build
 	mkdir -p build/sim
+	mkdir -p build/verilog
 
 mk$(NAME).ba: $(NAME).bsv dirs
 	bsc -bdir build $(BSC_FLAGS) -u -sim -g mk$(MOD) $<
@@ -18,11 +19,12 @@ $(NAME)_out: mk$(NAME).ba
 sim: $(NAME)_out
 	./$(NAME)_out -V dump.vcd
 
-$(NAME)_outv: 
-	bsc -vsim iverilog -u -elab -verilog -vsearch rtl -bdir build $(BSC_FLAGS) -o $@
+$(NAME)_outv: $(NAME).bsv dirs
+	bsc -bdir build -simdir build/sim -vdir build/verilog -show-schedule -vsearch rtl:+ -verilog $(BSC_FLAGS) -u -g mk$(MOD) $<
+	bsc -bdir build -simdir build/sim -vdir build/verilog -vsim iverilog -vsearch rtl:+ -e mk$(MOD) -o $@
 
 simv: $(NAME)_outv
-	./$(NAME)_out +bscvcd dump.vcd
+	./$(NAME)_outv +bscvcd
 
 clean: 
 	rm -rf build build/sim

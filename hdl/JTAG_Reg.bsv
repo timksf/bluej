@@ -2,16 +2,14 @@ package JTAG_Reg;
 
 import BUtils :: *;
 
+import JTAG_Types :: *;
+
 interface JTAG_Reg_ifc#(numeric type w);
 
-    method Bit#(1) tdo();
     method Bit#(w) reg_o();
-
     method Action tdi(Bit#(1) t);
-    method Action capture(Bool v);
-    method Action shift(Bool v);
-    method Action update(Bool v);
-    method Action sel(Bool v);
+
+    interface JTAG_Ctrl_Dn_ifc ctrl;
 
 endinterface
 
@@ -40,14 +38,16 @@ module mkJTAGReg#(Bit#(w) reg_i)(JTAG_Reg_ifc#(w)) provisos(Add#(1, a__, w));
         rHR <= rSR;
     endrule
 
-    method tdo      = dwTDO;
     method reg_o    = rHR;
-
     method tdi      = bwTDI._write;
-    method capture  = bwCapture._write;
-    method shift    = bwShift._write;
-    method update   = bwUpdate._write;
-    method sel      = bwSelect._write;
+    
+    interface JTAG_Ctrl_Dn_ifc ctrl;
+        method tdo      = dwTDO;
+        method capture  = bwCapture._write;
+        method shift    = bwShift._write;
+        method update   = bwUpdate._write;
+        method sel      = bwSelect._write;
+    endinterface
 endmodule
 
 module mkJTAGBypass(JTAG_Reg_ifc#(1));
@@ -75,14 +75,16 @@ module mkJTAGBypass(JTAG_Reg_ifc#(1));
         rHR <= rSR;
     endrule
 
-    method tdo      = dwTDO;
     method reg_o    = rHR;
-
     method tdi      = bwTDI._write;
-    method capture  = bwCapture._write;
-    method shift    = bwShift._write;
-    method update   = bwUpdate._write;
-    method sel      = bwSelect._write;
+    
+    interface JTAG_Ctrl_Dn_ifc ctrl;
+        method tdo      = dwTDO;
+        method capture  = bwCapture._write;
+        method shift    = bwShift._write;
+        method update   = bwUpdate._write;
+        method sel      = bwSelect._write;
+    endinterface
 endmodule
 
 endpackage

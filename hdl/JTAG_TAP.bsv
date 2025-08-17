@@ -8,32 +8,32 @@ import JTAG_Types :: *;
 import JTAG_Reg :: *;
 
 typedef enum {
-    TestLogicReset,
-    RunTestIdle,
-    SelectDRScan,
-    CaptureDR,
-    ShiftDR,
-    Exit1DR,
-    PauseDR,
-    Exit2DR,
-    UpdateDR,
-    SelectIRScan,
-    CaptureIR,
-    ShiftIR,
-    Exit1IR,
-    PauseIR,
-    Exit2IR,
-    UpdateIR
+    TestLogicReset = 0,
+    RunTestIdle = 1,
+    SelectDRScan = 2,
+    CaptureDR = 3,
+    ShiftDR = 4,
+    Exit1DR = 5,
+    PauseDR = 6,
+    Exit2DR = 7,
+    UpdateDR = 8,
+    SelectIRScan = 9,
+    CaptureIR = 10,
+    ShiftIR = 11,
+    Exit1IR = 12,
+    PauseIR = 13,
+    Exit2IR = 14,
+    UpdateIR = 15
 } JTAG_TAP_State_t deriving(Eq, Bits, FShow);
 
 (* always_ready *)
-interface JTAG_Ctrl_ifc;
-    method Bool update_dr;
-    method Bool capture_dr;
-    method Bool shift_dr;
-    method Bool update_ir;
-    method Bool capture_ir;
-    method Bool shift_ir;
+interface JTAG_FSM_Ctrl_ifc;
+    method Bool update_dr();
+    method Bool shift_dr();
+    method Bool capture_dr();
+    method Bool update_ir();
+    method Bool shift_ir();
+    method Bool capture_ir();
 endinterface
 
 (* always_enabled *)
@@ -43,7 +43,7 @@ interface JTAP_TAP_FSM_ifc;
     method Action tms((*port="TMS"*) Bit#(1) t);
 
     (* prefix="" *)
-    interface JTAG_Ctrl_ifc jtag_ctrl;
+    interface JTAG_FSM_Ctrl_ifc ctrl;
 
 endinterface
 
@@ -56,10 +56,7 @@ interface JTAG_TAP_Controller_ifc#(numeric type n);
     (* prefix="", result="TDO" *)
     method Bit#(1) tdo();
 
-
-    interface Vector#(n, Put#(Bit#(1))) tdo_up;
-    interface Vector#(n, Bool) select;
-    interface JTAG_Ctrl_ifc jtag_ctrl;
+    interface JTAG_Ctrl_Up_ifc#(n) tap_ctrl;
 
 endinterface
 
@@ -97,15 +94,20 @@ module mkJTAG_TAP_FSM(JTAP_TAP_FSM_ifc);
     // let trst    <- exposeCurrentReset();
 
     Wire#(Bit#(1))          bwTMS <- mkBypassWire;
+    Wire#(JTAG_TAP_State_t) next <- mkWire;
     Reg#(JTAG_TAP_State_t)  rState <- mkReg(TestLogicReset);
 
+
     rule rfsm;
-        rState <= tap_next_state(rState, bwTMS);
+        let next_state = tap_next_state(rState, bwTMS);
+        next <= next_state;
+        // $write("[%0t] state ", $time, fshow(rState)); $display(" next state ", fshow(next_state));
+        rState <= next_state;
     endrule
 
     method tms = bwTMS._write;
 
-    interface JTAG_Ctrl_ifc jtag_ctrl;
+    interface JTAG_FSM_Ctrl_ifc ctrl;
         method update_dr    = rState == UpdateDR;
         method shift_dr     = rState == ShiftDR;
         method capture_dr   = rState == CaptureDR;
@@ -116,23 +118,22 @@ module mkJTAG_TAP_FSM(JTAP_TAP_FSM_ifc);
 
 endmodule
 
-(*
-    default_clock_osc="TCK",
-    default_reset="TRST"
-*)
+// (*
+//     default_clock_osc="TCK",
+//     default_reset="TRST"
+// *)
 module mkJTAG_TAP_Controller#(
     JTAG_TAP_Config_t#(n, w) tap_cfg,
     JTAGInstruction_t#(w) instr_idcode,
     Bool reset_idcode_not_bypass
     )(JTAG_TAP_Controller_ifc#(n)) provisos(Add#(1, a__, w));
-    
+
     //IR has to be reset to IDCODE/BYPASS
     //BYPASS has to be identified at least with all 1's
     JTAGInstruction_t#(w) instr_bypass = unpack(-1);
     JTAGInstruction_t#(w) ir_rst = reset_idcode_not_bypass ? instr_idcode : instr_bypass;
 
     let tap_fsm <- mkJTAG_TAP_FSM();
-    
     JTAG_Reg_ifc#(w) jtagIR <- mkJTAGReg(ir_rst);
     JTAG_Reg_ifc#(1) jtagBypass <- mkJTAGBypass();
     JTAG_Reg_ifc#(10) jtagIDCode <- mkJTAGReg({'b010010011, 1'b1}); //idcode is required to have a 1 as LSB
@@ -145,28 +146,29 @@ module mkJTAG_TAP_Controller#(
     Bool id_sel = pack(readVReg(vSelect)) == 0 && jtagIR.reg_o() == 0;
     Bool byp_sel = pack(readVReg(vSelect)) == 0 && jtagIR.reg_o() == pack(instr_bypass);
 
-    Bool scan_ir = tap_fsm.jtag_ctrl.capture_ir || tap_fsm.jtag_ctrl.shift_ir || tap_fsm.jtag_ctrl.update_ir;
-    Bool scan_dr = tap_fsm.jtag_ctrl.capture_dr || tap_fsm.jtag_ctrl.shift_dr || tap_fsm.jtag_ctrl.update_dr;
+    Bool scan_ir = tap_fsm.ctrl.capture_ir || tap_fsm.ctrl.shift_ir || tap_fsm.ctrl.update_ir;
+    Bool scan_dr = tap_fsm.ctrl.capture_dr || tap_fsm.ctrl.shift_dr || tap_fsm.ctrl.update_dr;
     
-    mkConnection(jtagIR.capture, tap_fsm.jtag_ctrl.capture_ir);
-    mkConnection(jtagIR.shift, tap_fsm.jtag_ctrl.shift_ir);
-    mkConnection(jtagIR.update, tap_fsm.jtag_ctrl.update_ir);
+    //the IR is the only JTAGReg connected to the IR control lines of the TAP FSM
+    mkConnection(jtagIR.ctrl.capture, tap_fsm.ctrl.capture_ir);
+    mkConnection(jtagIR.ctrl.shift, tap_fsm.ctrl.shift_ir);
+    mkConnection(jtagIR.ctrl.update, tap_fsm.ctrl.update_ir);
     mkConnection(jtagIR.tdi, bwTDI);
 
-    mkConnection(jtagBypass.capture, tap_fsm.jtag_ctrl.capture_dr);
-    mkConnection(jtagBypass.shift, tap_fsm.jtag_ctrl.shift_dr);
-    mkConnection(jtagBypass.update, tap_fsm.jtag_ctrl.update_dr);
+    mkConnection(jtagBypass.ctrl.capture, tap_fsm.ctrl.capture_dr);
+    mkConnection(jtagBypass.ctrl.shift, tap_fsm.ctrl.shift_dr);
+    mkConnection(jtagBypass.ctrl.update, tap_fsm.ctrl.update_dr);
+    mkConnection(jtagBypass.ctrl.sel, byp_sel);
     mkConnection(jtagBypass.tdi, bwTDI);
-    mkConnection(jtagBypass.sel, byp_sel);
 
-    mkConnection(jtagIDCode.capture, tap_fsm.jtag_ctrl.capture_dr);
-    mkConnection(jtagIDCode.shift, tap_fsm.jtag_ctrl.shift_dr);
-    mkConnection(jtagIDCode.update, tap_fsm.jtag_ctrl.update_dr);
+    mkConnection(jtagIDCode.ctrl.capture, tap_fsm.ctrl.capture_dr);
+    mkConnection(jtagIDCode.ctrl.shift, tap_fsm.ctrl.shift_dr);
+    mkConnection(jtagIDCode.ctrl.update, tap_fsm.ctrl.update_dr);
+    mkConnection(jtagIDCode.ctrl.sel, id_sel);
     mkConnection(jtagIDCode.tdi, bwTDI);
-    mkConnection(jtagIDCode.sel, id_sel);
 
     rule rir;
-        jtagIR.sel(True);
+        jtagIR.ctrl.sel(True);
     endrule
 
     //instruction decoder based on IR hold register
@@ -180,9 +182,9 @@ module mkJTAG_TAP_Controller#(
     method Bit#(1) tdo();
         Bit#(1) tdo_ = 0;
         if(id_sel) 
-            tdo_ = jtagIDCode.tdo();
+            tdo_ = jtagIDCode.ctrl.tdo();
         else if(byp_sel)
-            tdo_ = jtagBypass.tdo();
+            tdo_ = jtagBypass.ctrl.tdo();
         else
             for(Integer i = 0; i < valueof(n); i = i + 1)
                 if(vSelect[i])
@@ -192,9 +194,15 @@ module mkJTAG_TAP_Controller#(
 
     method tdi = bwTDI._write;
     method tms = tap_fsm.tms;
-    interface tdo_up = map(toPut, map(asReg, vTDO_up));
-    interface select = readVReg(vSelect);
-    interface jtag_ctrl = tap_fsm.jtag_ctrl;
+
+    interface JTAG_Ctrl_Up_ifc tap_ctrl;
+        method update = tap_fsm.ctrl.update_dr;
+        method capture = tap_fsm.ctrl.capture_dr;
+        method shift = tap_fsm.ctrl.shift_dr;
+
+        interface tdo_up = map(reg_write_f, map(asReg, vTDO_up));
+        interface select = readVReg(vSelect);
+    endinterface
 
 endmodule
 
