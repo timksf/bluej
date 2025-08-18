@@ -1,0 +1,166 @@
+{
+  "extensionVersion": "1.3.9",
+  "fileName": "/home/kti8rt/bluej/hdl/dump.vcd",
+  "markerTime": 2136,
+  "altMarkerTime": null,
+  "selectedSignal": {
+    "name": "main.top.dut.ifc_jtagIDCode_rHR",
+    "numberFormat": "hexadecimal",
+    "msb": 9,
+    "lsb": 0
+  },
+  "zoomRatio": 0.6663240835902706,
+  "scrollLeft": 0,
+  "displayedSignals": [
+    {
+      "dataType": "signal-group",
+      "groupName": "JTAG Signals",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 713,
+          "name": "main.top.dut.RST_N",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 716,
+          "name": "main.top.dut.CLK",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 661,
+          "name": "main.top.dut.TMS",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 660,
+          "name": "main.top.dut.TDI",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 546,
+          "name": "main.top.\\dut$TDO",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 641,
+      "name": "main.top.rCount",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 724,
+      "name": "main.top.dut.ifc_tap_fsm_rState",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "Instruction Reg",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 722,
+          "name": "main.top.dut.ifc_jtagIR_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 721,
+          "name": "main.top.dut.ifc_jtagIR_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "IDCODE",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 720,
+          "name": "main.top.dut.ifc_jtagIDCode_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 719,
+          "name": "main.top.dut.ifc_jtagIDCode_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "REG0",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 645,
+          "name": "main.top.reg0_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 644,
+          "name": "main.top.reg0_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 643,
+      "name": "main.top.rOut",
+      "numberFormat": "hexadecimal",
+      "colorIndex": 0,
+      "renderType": "multiBit",
+      "valueLinkCommand": ""
+    }
+  ]
+}

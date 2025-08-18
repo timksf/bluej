@@ -3,3 +3,4 @@
 .vscode
 *outv
 *.sched
+*.vcd

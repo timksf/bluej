@@ -136,7 +136,7 @@ module mkJTAG_TAP_Controller#(
     let tap_fsm <- mkJTAG_TAP_FSM();
     JTAG_Reg_ifc#(w) jtagIR <- mkJTAGReg(ir_rst);
     JTAG_Reg_ifc#(1) jtagBypass <- mkJTAGBypass();
-    JTAG_Reg_ifc#(10) jtagIDCode <- mkJTAGReg({'b010010011, 1'b1}); //idcode is required to have a 1 as LSB
+    JTAG_Reg_ifc#(32) jtagIDCode <- mkJTAGReg({tap_cfg.idcode_man, tap_cfg.idcode_part, tap_cfg.idcode_ver, 1'b1}); //idcode is required to have a 1 as LSB
     Vector#(n, Wire#(Bool)) vSelect <- replicateM(mkDWire(False));
     Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
 
@@ -174,7 +174,7 @@ module mkJTAG_TAP_Controller#(
     //instruction decoder based on IR hold register
     rule rdecode;
         for(Integer i = 0; i < valueof(n); i = i + 1) begin
-            vSelect[i] <= jtagIR.reg_o() == tap_cfg[i];
+            vSelect[i] <= jtagIR.reg_o() == tap_cfg.instrs[i];
         end
     endrule
 
@@ -200,7 +200,7 @@ module mkJTAG_TAP_Controller#(
         method capture = tap_fsm.ctrl.capture_dr;
         method shift = tap_fsm.ctrl.shift_dr;
 
-        interface tdo_up = map(reg_write_f, map(asReg, vTDO_up));
+        interface tdo_up = map(reg_to_write_only, map(asReg, vTDO_up));
         interface select = readVReg(vSelect);
     endinterface
 

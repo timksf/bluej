@@ -10,7 +10,7 @@ interface JTAG_Ctrl_Up_ifc#(numeric type n);
     method Bool shift;
 
     interface Vector#(n, Bool) select;
-    interface Vector#(n, function Action _f(Bit#(1) d)) tdo_up;
+    interface Vector#(n, WriteOnly#(Bit#(1))) tdo_up;
 
 endinterface
 
@@ -38,10 +38,17 @@ module jtagConnect#(JTAG_Ctrl_Up_ifc#(n) tap, JTAG_Ctrl_Dn_ifc jtag_target, Inte
     endrule
 
     rule rconn_tdo;
-        tap.tdo_up[i](jtag_target.tdo);
+        tap.tdo_up[i] <= jtag_target.tdo;
     endrule
 
 endmodule
+
+function WriteOnly#(t) reg_to_write_only(Reg#(t) r) provisos(Bits#(t, s));
+    return 
+        interface WriteOnly;
+            method _write = r._write;
+        endinterface;
+endfunction
 
 function function Action _f(t b) reg_write_f(Reg#(t) r) provisos(Bits#(t, s));
     return r._write;
@@ -49,6 +56,13 @@ endfunction
 
 typedef Bit#(w) JTAGInstruction_t#(numeric type w);
 
-typedef Vector#(n, JTAGInstruction_t#(w)) JTAG_TAP_Config_t#(numeric type n, numeric type w);
+// typedef Vector#(n, JTAGInstruction_t#(w)) JTAG_TAP_Config_t#(numeric type n, numeric type w);
+
+typedef struct {
+    Bit#(11) idcode_man;
+    Bit#(16) idcode_part;
+    Bit#(4) idcode_ver;
+    Vector#(n, JTAGInstruction_t#(w)) instrs;
+} JTAG_TAP_Config_t#(numeric type n, numeric type w) deriving(FShow, Eq, Bits);
 
 endpackage
