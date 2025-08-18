@@ -1,6 +1,7 @@
 package JTAG_Reg;
 
 import BUtils :: *;
+import DReg :: *;
 
 import JTAG_Types :: *;
 
@@ -26,21 +27,29 @@ module mkJTAGReg#(t reg_i)(JTAG_Reg_ifc#(t)) provisos(Bits#(t, w), Add#(1, a__, 
     Wire#(Bool)     bwUpdate    <- mkBypassWire;
     Wire#(Bool)     bwSelect    <- mkBypassWire;
 
+    Reg#(Bool)      rWR         <- mkDReg(False);
+
+    //the wires activating each rule are derived from different fsm states so cannot be active at the same time
+
+    (* mutually_exclusive ="rshift, rcapture" *)
     rule rshift if(bwShift && bwSelect);
         rSR <= {bwTDI, rSR[valueof(w)-1:1]}; //requires proviso
         dwTDO <= rSR[0];
     endrule
 
+    (* mutually_exclusive ="rcapture, rupdate" *)
     rule rcapture if(bwCapture && bwSelect);
         rSR <= pack(reg_i);
     endrule
 
+    (* mutually_exclusive ="rshift, rupdate" *)
     rule rupdate if(bwUpdate && bwSelect);
         rHR <= rSR;
+        rWR <= True;
     endrule
 
     method reg_o    = unpack(rHR);
-    method wr_o     = bwSelect && bwUpdate; //indicate update after shift
+    method wr_o     = rWR; //indicate update after shift
     method tdi      = bwTDI._write;
     
     interface JTAG_Ctrl_Dn_ifc ctrl;
@@ -72,7 +81,7 @@ module mkJTAGBypass(JTAG_Reg_ifc#(Bit#(1)));
     rule rcapture if(bwCapture && bwSelect);
         rSR <= 0;
     endrule
-
+    
     rule rupdate if(bwUpdate && bwSelect);
         rHR <= rSR;
     endrule

@@ -1,7 +1,7 @@
 NAME=Testbench
 MOD=$(NAME) #only change if top module name is different from file name
 
-BSC_FLAGS+=-aggressive-conditions -no-warn-action-shadowing -keep-inlined-boundaries
+BSC_FLAGS+=-aggressive-conditions -no-warn-action-shadowing -keep-inlined-boundaries -suppress-warnings G0010
 
 # -remove-dollar
 

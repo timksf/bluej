@@ -2,6 +2,7 @@ package JTAG_BusAdapter;
 
 import Clocks :: *;
 import FIFO :: *;
+import GetPut :: *;
 import ClientServer :: *;
 
 import JTAG_Types :: *;
@@ -34,7 +35,7 @@ endinterface
 module mkJTAG_BusAdapter#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(aw, dw));
 
     SyncFIFOIfc#(BusRequest#(aw, dw)) f_sync_req <- mkSyncFIFOFromCC(2, bus_clk);
-    SyncFIFOIfc#(Bit#(dw)) f_sync_resp <- mkSyncFIFOToCC(2, bus_clk, bus_rst);
+    SyncFIFOIfc#(BusResponse#(dw)) f_sync_resp <- mkSyncFIFOToCC(2, bus_clk, bus_rst);
 
     Reg#(JTAG_BusControl#(aw, dw)) jrg_ctrl_i <- mkReg(tagged Response { error: False, valid: False, resp: ? });
 
@@ -58,11 +59,11 @@ module mkJTAG_BusAdapter#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(aw,
         jrg_ctrl_i <= tagged Response {
             error: False, //ToDo
             valid: True, //ToDo, when false?
-            resp: BusResponse { data: f_sync_resp.first }
+            resp: f_sync_resp.first
         };
     endrule
 
-    interface jtag_bus_ctrl = jrg_bus_ctrl.ctrl;
+    interface jtag_bus_ctrl = jrg_bus_ctrl;
     interface bus = toGPClient(toGet(f_sync_req), toPut(f_sync_resp));
 
 endmodule
