@@ -53,18 +53,19 @@ function Stmt jtag_ir(Reg#(Bit#(32)) i, Wire#(Bit#(1)) tck, Wire#(Bit#(1)) tms, 
     //then go to Run-Test/Idle with 110
     Bit#(w1) z = 0;
     Bit#(TAdd#(w, 6)) tms_v = {4'b1100, z, 3'b110};
-    Bit#(TAdd#(w, 6)) tdi_v = {4'b1111, reverseBits(instr), 2'b11};
+    Bit#(TAdd#(w, 6)) tdi_v = {4'b0000, reverseBits(instr), 2'b00};
     return jtag_sequence(i, tck, tms, tdi, tms_v, tdi_v);
 endfunction
 
-function Stmt jtag_dr_ret(Reg#(Bit#(32)) i, Wire#(Bit#(1)) tck, Wire#(Bit#(1)) tms, Wire#(Bit#(1)) tdi, Wire#(Bit#(1)) tdo, Reg#(Bit#(w)) out)
+function Stmt jtag_dr_ret(Reg#(Bit#(32)) i, Wire#(Bit#(1)) tck, Wire#(Bit#(1)) tms, Wire#(Bit#(1)) tdi, Wire#(Bit#(1)) tdo, Bit#(w) inp, Reg#(Bit#(w)) out)
     provisos(
         Add#(w1, 1, w)
     );
     Bit#(w1) z = 0;
     Bit#(TAdd#(w, 6)) tms_v = {4'b100, z, 3'b110};
+    Bit#(TAdd#(w, 6)) tdi_v = {4'b000, reverseBits(inp), 2'b00};
     return par
-        jtag_sequence(i, tck, tms, tdi, tms_v, 0);
+        jtag_sequence(i, tck, tms, tdi, tms_v, tdi_v);
         seq
             await(i == 5);
             while(i < fromInteger(valueof(w)) + 5) action

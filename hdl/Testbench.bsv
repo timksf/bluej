@@ -10,7 +10,7 @@ import Connectable :: *;
 import BlueJ :: *;
 import ClockUtil :: *;
 
-typedef 8 IR_WIDTH;
+`define IR_WIDTH 8
 
 (* synthesize *)
 module mkDUT(JTAG_TAP_Controller_ifc#(1));
@@ -18,7 +18,7 @@ module mkDUT(JTAG_TAP_Controller_ifc#(1));
     let tck <- exposeCurrentClock;
     let trst <- exposeCurrentReset;
 
-    JTAG_TAP_Config_t#(1, IR_WIDTH) jtag_config = JTAG_TAP_Config_t {
+    JTAG_TAP_Config_t#(1, `IR_WIDTH) jtag_config = JTAG_TAP_Config_t {
         idcode_man: 'b00000010111,
         idcode_part: 'h04,
         idcode_ver: 0,
@@ -52,7 +52,7 @@ module mkTestbench();
     jtagConnect(dut.tap_ctrl, reg0.ctrl, 0);
 
     Reg#(Bit#(32)) rCount <- mkRegU;
-    Reg#(Bit#(32)) rOut <- mkReg(0);
+    Reg#(Bit#(33)) rOut <- mkReg(0);
 
     //connect TAP controller to stimulus
     mkConnection(toGet(wtck),               toPut(jtag_stim.ext_tck));
@@ -70,13 +70,20 @@ module mkTestbench();
             jtag_reset(rCount, wtck, ext_tms, ext_tdi);
             jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
             delay(10);
+            //read custom register
             jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h02);
             jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
-            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, rOut);
+            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut);
             jtag_idle(rCount, wtck, ext_tms, ext_tdi, 1);
             //read IDCODE
             jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h00);
-            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, rOut);
+            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut);
+            delay(10); //not driving JTAG signals should not have any effect on JTAG hardware
+            rOut <= 0;
+            //BYPASS
+            jtag_ir(rCount, wtck, ext_tms, ext_tdi, Bit#(`IR_WIDTH)'(unpack(-1)));
+            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'hCAFEAFFE, rOut);
+            rOut <= rOut >> 1; //bypass results arrive once cycle delayed in relation to TDI
             delay(10);
         endseq
     };

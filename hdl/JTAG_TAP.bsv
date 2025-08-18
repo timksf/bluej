@@ -2,6 +2,7 @@ package JTAG_TAP;
 
 import Vector :: *;
 import GetPut :: *;
+import Clocks :: *;
 import Connectable :: *;
 
 import JTAG_Types :: *;
@@ -128,6 +129,9 @@ module mkJTAG_TAP_Controller#(
     Bool reset_idcode_not_bypass
     )(JTAG_TAP_Controller_ifc#(n)) provisos(Add#(1, a__, w));
 
+    let tck <- exposeCurrentClock;
+    let tck_inv <- invertCurrentClock;
+
     //IR has to be reset to IDCODE/BYPASS
     //BYPASS has to be identified at least with all 1's
     JTAGInstruction_t#(w) instr_bypass = unpack(-1);
@@ -139,6 +143,9 @@ module mkJTAG_TAP_Controller#(
     JTAG_Reg_ifc#(32) jtagIDCode <- mkJTAGReg({tap_cfg.idcode_man, tap_cfg.idcode_part, tap_cfg.idcode_ver, 1'b1}); //idcode is required to have a 1 as LSB
     Vector#(n, Wire#(Bool)) vSelect <- replicateM(mkDWire(False));
     Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
+
+    //crossed signals for TDO update on falling edge of tck
+    // Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire(clocked_by inver));
 
     Wire#(Bit#(1)) bwTDI <- mkBypassWire;
     
@@ -178,7 +185,7 @@ module mkJTAG_TAP_Controller#(
         end
     endrule
 
-    //tdo mux
+    //tdo mux, clocked by inverted TCK
     method Bit#(1) tdo();
         Bit#(1) tdo_ = 0;
         if(id_sel) 
