@@ -138,9 +138,9 @@ module mkJTAG_TAP_Controller#(
     JTAGInstruction_t#(w) ir_rst = reset_idcode_not_bypass ? instr_idcode : instr_bypass;
 
     let tap_fsm <- mkJTAG_TAP_FSM();
-    JTAG_Reg_ifc#(w) jtagIR <- mkJTAGReg(ir_rst);
-    JTAG_Reg_ifc#(1) jtagBypass <- mkJTAGBypass();
-    JTAG_Reg_ifc#(32) jtagIDCode <- mkJTAGReg({tap_cfg.idcode_man, tap_cfg.idcode_part, tap_cfg.idcode_ver, 1'b1}); //idcode is required to have a 1 as LSB
+    JTAG_Reg_ifc#(Bit#(w)) jtagIR <- mkJTAGReg(ir_rst);
+    JTAG_Reg_ifc#(Bit#(1)) jtagBypass <- mkJTAGBypass();
+    JTAG_Reg_ifc#(Bit#(32)) jtagIDCode <- mkJTAGReg({tap_cfg.idcode_man, tap_cfg.idcode_part, tap_cfg.idcode_ver, 1'b1}); //idcode is required to have a 1 as LSB
     Vector#(n, Wire#(Bool)) vSelect <- replicateM(mkDWire(False));
     Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
 

@@ -45,7 +45,7 @@ module mkTestbench();
 
     let dut <- mkDUT(clocked_by tck, reset_by trst);
 
-    JTAG_Reg_ifc#(32) reg0 <- mkJTAGReg('hDEADBEEF, clocked_by tck, reset_by trst);
+    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hDEADBEEF, clocked_by tck, reset_by trst);
 
     //connect custom data register
     mkConnection(reg0.tdi, jtag_stim.int_tdi);

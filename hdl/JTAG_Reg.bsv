@@ -4,16 +4,17 @@ import BUtils :: *;
 
 import JTAG_Types :: *;
 
-interface JTAG_Reg_ifc#(numeric type w);
+interface JTAG_Reg_ifc#(type t);
 
-    method Bit#(w) reg_o();
+    method t reg_o();
+    method Bool wr_o();
     method Action tdi(Bit#(1) t);
 
     interface JTAG_Ctrl_Dn_ifc ctrl;
 
 endinterface
 
-module mkJTAGReg#(Bit#(w) reg_i)(JTAG_Reg_ifc#(w)) provisos(Add#(1, a__, w));
+module mkJTAGReg#(t reg_i)(JTAG_Reg_ifc#(t)) provisos(Bits#(t, w), Add#(1, a__, w));
 
     Reg#(Bit#(w)) rSR   <- mkRegU;
     Reg#(Bit#(w)) rHR   <- mkRegU;
@@ -31,14 +32,15 @@ module mkJTAGReg#(Bit#(w) reg_i)(JTAG_Reg_ifc#(w)) provisos(Add#(1, a__, w));
     endrule
 
     rule rcapture if(bwCapture && bwSelect);
-        rSR <= reg_i;
+        rSR <= pack(reg_i);
     endrule
 
     rule rupdate if(bwUpdate && bwSelect);
         rHR <= rSR;
     endrule
 
-    method reg_o    = rHR;
+    method reg_o    = unpack(rHR);
+    method wr_o     = bwSelect && bwUpdate; //indicate update after shift
     method tdi      = bwTDI._write;
     
     interface JTAG_Ctrl_Dn_ifc ctrl;
@@ -50,7 +52,7 @@ module mkJTAGReg#(Bit#(w) reg_i)(JTAG_Reg_ifc#(w)) provisos(Add#(1, a__, w));
     endinterface
 endmodule
 
-module mkJTAGBypass(JTAG_Reg_ifc#(1));
+module mkJTAGBypass(JTAG_Reg_ifc#(Bit#(1)));
 
     Reg#(Bit#(1)) rSR   <- mkRegU;
     Reg#(Bit#(1)) rHR   <- mkRegU;
@@ -76,6 +78,7 @@ module mkJTAGBypass(JTAG_Reg_ifc#(1));
     endrule
 
     method reg_o    = rHR;
+    method wr_o     = bwSelect && bwUpdate; //indicate update after shift
     method tdi      = bwTDI._write;
     
     interface JTAG_Ctrl_Dn_ifc ctrl;
