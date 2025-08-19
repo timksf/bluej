@@ -4,3 +4,7 @@
 *outv
 *.sched
 *.vcd
+*.o
+*.so
+*_out
+*_outv

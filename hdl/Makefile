@@ -1,8 +1,10 @@
 NAME=Testbench
 MOD=$(NAME) #only change if top module name is different from file name
 
-BSC_FLAGS+=-aggressive-conditions -no-warn-action-shadowing -keep-inlined-boundaries -suppress-warnings G0010
+SOURCES_BDPI:=$(wildcard bdpi/*.cc)
 
+BSC_DIRS+=-bdir build -simdir build/sim
+BSC_FLAGS+=-show-schedule -aggressive-conditions -no-warn-action-shadowing -keep-inlined-boundaries -suppress-warnings G0010
 # -remove-dollar
 
 dirs:
@@ -14,18 +16,18 @@ mk$(NAME).ba: $(NAME).bsv dirs
 	bsc -bdir build $(BSC_FLAGS) -u -sim -g mk$(MOD) $<
 
 $(NAME)_out: mk$(NAME).ba 
-	bsc -bdir build -simdir build/sim -show-schedule -u -sim -e mk$(MOD) -o $@
+	bsc $(BSC_DIRS) -show-schedule -u -sim -e mk$(MOD) -o $@ $(SOURCES_BDPI)
 
 sim: $(NAME)_out
 	./$(NAME)_out -V dump.vcd
 
 $(NAME)_outv: $(NAME).bsv dirs
-	bsc -bdir build -simdir build/sim -vdir build/verilog -show-schedule -vsearch rtl:+ -verilog $(BSC_FLAGS) -u -g mk$(MOD) $<
-	bsc -bdir build -simdir build/sim -vdir build/verilog -vsim iverilog -vsearch rtl:+ -e mk$(MOD) -o $@
+	bsc $(BSC_DIRS) -vdir build/verilog -show-schedule -vsearch rtl:+ -verilog $(BSC_FLAGS) -u -g mk$(MOD) $<
+	bsc $(BSC_DIRS) -vdir build/verilog -vsim iverilog -vsearch rtl:+ -e mk$(MOD) -o $@
 
 simv: $(NAME)_outv
 	./$(NAME)_outv +bscvcd
 
 clean: 
 	rm -rf build build/sim
-	rm -f *.ba *.bo *.o *.so *.cxx *.h $(NAME)_out *.sched 
+	rm -f *.ba *.bo *.o *.so *.cxx *.h $(NAME)_out $(NAME)_outv *.sched bdpi/*.o

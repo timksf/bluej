@@ -4,6 +4,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#define SOCKET_NAME "/tmp/jtag.sock"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,6 +14,7 @@ int32_t c_socket_init() {
     int32_t socket_fd;
     int32_t ret;
 
+    unlink(SOCKET_NAME);
     socket_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
     if(socket_fd == -1) {
@@ -21,7 +24,7 @@ int32_t c_socket_init() {
 
     struct sockaddr_un saddr = { 0 };
     saddr.sun_family = AF_UNIX;
-    strncpy(saddr.sun_path, "/tmp/jtag.sock", sizeof(saddr.sun_path) - 1);
+    strncpy(saddr.sun_path, SOCKET_NAME, sizeof(saddr.sun_path) - 1);
 
     ret = bind(socket_fd, (const sockaddr*) &saddr, sizeof(sockaddr_un));
     if(ret == -1) {
@@ -34,6 +37,8 @@ int32_t c_socket_init() {
         printf("Failed to listen on socket\n");
         return -1;
     }
+
+    printf("Started socket %s\n", SOCKET_NAME);
 
     return socket_fd;
 }
@@ -53,11 +58,11 @@ int32_t c_socket_accept(int32_t socket_fd) {
 
 uint32_t c_socket_process(int32_t fd) {
     int32_t ret;
-    char buf;
+    char buf, val;
 
     ret = read(fd, &buf, 1);
     if(ret == -1) {
-        printf("Failed to read from socket\n");
+        // printf("Failed to read from socket\n");
         return -1;
     }
 
@@ -78,6 +83,10 @@ uint32_t c_socket_process(int32_t fd) {
         }
         case 'R': // - Read request
         {
+            val = '0'; //ToDo
+            ret = write(fd, &val, 1);
+            if (ret == -1)
+                printf("Failed to respond to OpenOCD via socket\n");
             break;
         }
         case 'Q': // - Quit request

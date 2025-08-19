@@ -10,7 +10,7 @@ interface JTAG_Driver_ifc;
     method Bit#(1) ext_tck();
     method Bit#(1) ext_tms();
     method Bit#(1) ext_tdi();
-    method Action ext_tdo();
+    method Action ext_tdo(Bit#(1) b);
 endinterface
 
 module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
@@ -22,7 +22,8 @@ module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
 
     Reg#(Bool) rg_started <- mkReg(False);
     Reg#(Bool) rg_connected <- mkReg(False);
-    Reg#(Bit#(32)) rg_sock_fd <- mkRegU;
+    Reg#(Int#(32)) rg_sock_fd <- mkRegU;
+    Reg#(Int#(32)) rg_data_sock_fd <- mkRegU;
 
     rule r_init if(!rg_started);
         let socket_fd <- c_socket_init();
@@ -37,12 +38,13 @@ module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
         let r <- c_socket_accept(rg_sock_fd);
         if(r != -1) begin
             rg_connected <= True;
+            rg_data_sock_fd <= r;
         end
     endrule
 
     //process incoming commands
     rule r_process if(rg_started && rg_connected);
-        let cmd <- c_socket_process(rg_sock_fd)
+        let cmd <- c_socket_process(rg_data_sock_fd);
     endrule
 
     method ext_trst = 1'b0;
