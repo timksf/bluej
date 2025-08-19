@@ -48,7 +48,7 @@ endmodule
 
 module mkTestBus();
 
-    let bus_clk <- mkAbsoluteClock(0, 6);
+    let bus_clk <- mkAbsoluteClock(0, 2);
     let bus_rst <- mkAsyncResetFromCR(2, bus_clk);
 
     let jtag_stim <- mkJTAGShim(clocked_by bus_clk, reset_by bus_rst);
@@ -127,7 +127,7 @@ module mkTestBus();
         //some idling to let data arrive
         jtag_idle(rCount, wtck, ext_tms, ext_tdi, 4);
         jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 0, rOut);
-        $display(fshow(JTAG_BusControl#(32,32)'(unpack(rOut))));
+        $display("[%0t] ", $time, fshow(JTAG_BusControl#(32,32)'(unpack(rOut))));
         delay(10);
     endseq;
 
