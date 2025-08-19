@@ -3,6 +3,7 @@ package TestBus;
 import GetPut :: *;
 import Vector :: *;
 import Clocks :: *;
+import BRAM :: *;
 import StmtFSM :: *;
 import ClientServer :: *;
 import BuildVector :: *;
@@ -90,22 +91,43 @@ module mkTestBus();
     Reg#(JTAG_BusControl#(32, 32)) rg_req <- mkRegU(clocked_by bus_clk, reset_by bus_rst);
     Reg#(Bit#(66)) rOut <- mkReg(0, clocked_by bus_clk, reset_by bus_rst);
 
+    //test memory connected to bus ifc
+    BRAM_Configure bram_cfg = defaultValue;
+    bram_cfg.memorySize = 32;
+    bram_cfg.loadFormat = tagged Hex "test_data.txt";
+
+    BRAM1Port#(Bit#(32), Bit#(32)) bram <- mkBRAM1Server(bram_cfg, clocked_by bus_clk, reset_by bus_rst);
+
     rule rbus_req;
         let req <- dut.bus.request.get();
         $display("[%0t] Got Bus request: ", $time, fshow(req));
+        bram.portA.request.put(BRAMRequest {
+            write: req.write_not_read,
+            responseOnWrite: False,
+            address: req.addr,
+            datain: req.data
+        });
+    endrule
+
+    rule rbus_resp;
+        let resp <- bram.portA.response.get();
+        dut.bus.response.put(BusResponse { data: resp });
+        $display("[%0t] BRAM response: ", $time, fshow(resp));
     endrule
 
     Stmt s = seq
         jtag_reset(rCount, wtck, ext_tms, ext_tdi);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h02);
         jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut);
-        $display("[%0t]JTAG returned %08X", $time, rOut);
+        $display("[%0t] JTAG returned %08X", $time, rOut);
         delay(10);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'hDE);
-        rg_req <= tagged Request BusRequest { write_not_read: True, addr: 'h08, data: 'hBEEF };
+        rg_req <= tagged Request BusRequest { write_not_read: False, addr: 'h08, data: ? };
         jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut);
-        //keep supplying TCK 
-        jtag_idle(rCount, wtck, ext_tms, ext_tdi, 3);
+        //some idling to let data arrive
+        jtag_idle(rCount, wtck, ext_tms, ext_tdi, 4);
+        jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 0, rOut);
+        $display(fshow(JTAG_BusControl#(32,32)'(unpack(rOut))));
         delay(10);
     endseq;
 
