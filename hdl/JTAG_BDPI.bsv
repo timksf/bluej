@@ -2,7 +2,7 @@ package JTAG_BDPI;
 
 import "BDPI" function ActionValue#(Int#(32)) c_socket_init();
 import "BDPI" function ActionValue#(Int#(32)) c_socket_accept(Int#(32) fd);
-import "BDPI" function ActionValue#(Int#(32)) c_socket_process(Int#(32) fd);
+import "BDPI" function ActionValue#(Int#(32)) c_socket_process(Int#(32) fd, Bit#(1) tdo);
 
 (* always_ready *)
 interface JTAG_Driver_ifc;
@@ -25,6 +25,7 @@ module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
     Reg#(Int#(32)) rg_sock_fd <- mkRegU;
     Reg#(Int#(32)) rg_data_sock_fd <- mkRegU;
 
+    //init listening socket
     rule r_init if(!rg_started);
         let socket_fd <- c_socket_init();
         if(socket_fd != -1) begin
@@ -44,7 +45,16 @@ module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
 
     //process incoming commands
     rule r_process if(rg_started && rg_connected);
-        let cmd <- c_socket_process(rg_data_sock_fd);
+        let cmd <- c_socket_process(rg_data_sock_fd, tdo);
+        //disconnect if bdpi function reports -2
+        if(cmd == -2) begin
+            rg_connected <= False;
+        end else if(cmd >= 0 && cmd <= 7)  begin
+            $display("[%0t] CMD: %02x", $time, cmd);
+            tck <= pack(cmd)[2];
+            tms <= pack(cmd)[1];
+            tdi <= pack(cmd)[0];
+        end
     endrule
 
     method ext_trst = 1'b0;

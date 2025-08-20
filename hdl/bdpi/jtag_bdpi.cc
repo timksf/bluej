@@ -56,7 +56,7 @@ int32_t c_socket_accept(int32_t socket_fd) {
     return client_fd;
 }
 
-uint32_t c_socket_process(int32_t fd) {
+uint32_t c_socket_process(int32_t fd, uint8_t tdo) {
     int32_t ret;
     char buf, val;
 
@@ -83,7 +83,7 @@ uint32_t c_socket_process(int32_t fd) {
         }
         case 'R': // - Read request
         {
-            val = '0'; //ToDo
+            val = tdo == 1 ? '1' : '0';
             ret = write(fd, &val, 1);
             if (ret == -1)
                 printf("Failed to respond to OpenOCD via socket\n");
@@ -93,6 +93,7 @@ uint32_t c_socket_process(int32_t fd) {
         {
             printf("OpenOCD closed remote\n");
             close(fd);
+            ret = -2;
             break;
         }
         case '0': // - Write 0 0 0
@@ -104,7 +105,7 @@ uint32_t c_socket_process(int32_t fd) {
         case '6': // - Write 1 1 0
         case '7': // - Write 1 1 1
         {
-            ret -= '0';
+            ret = buf - '0';
             break;
         }
         case 'r': // - Reset 0 0
@@ -136,7 +137,7 @@ uint32_t c_socket_process(int32_t fd) {
         }
     }
 
-    return -1;
+    return ret;
 }
 
 #ifdef __cplusplus

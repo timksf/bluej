@@ -131,6 +131,7 @@ module mkJTAG_TAP_Controller#(
 
     let tck <- exposeCurrentClock;
     let tck_inv <- invertCurrentClock;
+    let trst_inv <- mkAsyncResetFromCR(0, tck_inv);
 
     //IR has to be reset to IDCODE/BYPASS
     //BYPASS has to be identified at least with all 1's
@@ -138,20 +139,45 @@ module mkJTAG_TAP_Controller#(
     JTAGInstruction_t#(w) ir_rst = reset_idcode_not_bypass ? instr_idcode : instr_bypass;
 
     let tap_fsm <- mkJTAG_TAP_FSM();
-    JTAG_Reg_ifc#(Bit#(w)) jtagIR <- mkJTAGReg(ir_rst);
+
+    //IR register is required to hold 0b01 at [1:0] after capture
+    JTAG_Reg_ifc#(Bit#(w)) jtagIR <- mkJTAGRegR('h01, tagged WithReset ir_rst);
     JTAG_Reg_ifc#(Bit#(1)) jtagBypass <- mkJTAGBypass();
     JTAG_Reg_ifc#(Bit#(32)) jtagIDCode <- mkJTAGReg({tap_cfg.idcode_man, tap_cfg.idcode_part, tap_cfg.idcode_ver, 1'b1}); //idcode is required to have a 1 as LSB
-    Vector#(n, Wire#(Bool)) vSelect <- replicateM(mkDWire(False));
+
+    //instruction decoder based on IR hold register
+    Vector#(n, Bool) vSelect = newVector;
+    for(Integer i = 0; i < valueof(n); i = i + 1) begin
+        vSelect[i] = jtagIR.reg_o() == tap_cfg.instrs[i];
+    end
+
+    /* TDO MUX
+    */
     Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
 
-    //crossed signals for TDO update on falling edge of tck
-    // Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire(clocked_by inver));
+    ReadOnly#(Vector#(n, Bool)) sel_crossed <- mkNullCrossingWire(tck_inv, vSelect);
+    ReadOnly#(Bit#(w)) ir_crossed <- mkNullCrossingWire(tck_inv, jtagIR.reg_o());
+    ReadOnly#(Bit#(1)) idc_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagIDCode.ctrl.tdo());
+    ReadOnly#(Bit#(1)) byp_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagBypass.ctrl.tdo());
+    ReadOnly#(Vector#(n, Bit#(1))) tdos_crossed <- mkNullCrossingWire(tck_inv, readVReg(vTDO_up));
+    
+    Bit#(1) int_tdo = 0;
+    if(pack(sel_crossed) == 0 && ir_crossed == 0)
+        int_tdo = idc_tdo_crossed;
+    else if(pack(sel_crossed) == 0 && ir_crossed == pack(instr_bypass))
+        int_tdo = byp_tdo_crossed;
+    else
+        for(Integer i = 0; i < valueof(n); i = i + 1)
+            if(sel_crossed[i])
+                int_tdo = tdos_crossed[i];
+    //internal tdo signal which is updated on the falling edge and then null-crossed back
+    ReadOnly#(Bit#(1)) tdo_crossed <- mkNullCrossingWire(tck, int_tdo);
 
     Wire#(Bit#(1)) bwTDI <- mkBypassWire;
     
     //only activate bypass/idcode when no matching instruction was found in the config
-    Bool id_sel = pack(readVReg(vSelect)) == 0 && jtagIR.reg_o() == 0;
-    Bool byp_sel = pack(readVReg(vSelect)) == 0 && jtagIR.reg_o() == pack(instr_bypass);
+    Bool id_sel = pack(vSelect) == 0 && jtagIR.reg_o() == 0;
+    Bool byp_sel = pack(vSelect) == 0 && jtagIR.reg_o() == pack(instr_bypass);
 
     Bool scan_ir = tap_fsm.ctrl.capture_ir || tap_fsm.ctrl.shift_ir || tap_fsm.ctrl.update_ir;
     Bool scan_dr = tap_fsm.ctrl.capture_dr || tap_fsm.ctrl.shift_dr || tap_fsm.ctrl.update_dr;
@@ -178,27 +204,7 @@ module mkJTAG_TAP_Controller#(
         jtagIR.ctrl.sel(True);
     endrule
 
-    //instruction decoder based on IR hold register
-    rule rdecode;
-        for(Integer i = 0; i < valueof(n); i = i + 1) begin
-            vSelect[i] <= jtagIR.reg_o() == tap_cfg.instrs[i];
-        end
-    endrule
-
-    //tdo mux, clocked by inverted TCK
-    method Bit#(1) tdo();
-        Bit#(1) tdo_ = 0;
-        if(id_sel) 
-            tdo_ = jtagIDCode.ctrl.tdo();
-        else if(byp_sel)
-            tdo_ = jtagBypass.ctrl.tdo();
-        else
-            for(Integer i = 0; i < valueof(n); i = i + 1)
-                if(vSelect[i])
-                    tdo_ = vTDO_up[i];
-        return tdo_;
-    endmethod
-
+    method tdo = tdo_crossed;
     method tdi = bwTDI._write;
     method tms = tap_fsm.tms;
 
@@ -208,7 +214,7 @@ module mkJTAG_TAP_Controller#(
         method shift = tap_fsm.ctrl.shift_dr;
 
         interface tdo_up = map(reg_to_write_only, map(asReg, vTDO_up));
-        interface select = readVReg(vSelect);
+        interface select = vSelect;
     endinterface
 
 endmodule

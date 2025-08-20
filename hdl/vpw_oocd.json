@@ -1,0 +1,133 @@
+{
+  "extensionVersion": "1.3.9",
+  "fileName": "/home/kti8rt/bluej/hdl/dump.vcd",
+  "markerTime": 1717791,
+  "altMarkerTime": null,
+  "selectedSignal": {
+    "name": "main.top.tap.ifc_tap_fsm_rState",
+    "numberFormat": "hexadecimal",
+    "msb": -1,
+    "lsb": -1
+  },
+  "zoomRatio": 4.750090010987147,
+  "scrollLeft": 8159295.117453304,
+  "displayedSignals": [
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 28,
+      "name": "main.top.bus_clk.CLK_OUT",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "JTAG Signals",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 57,
+          "name": "main.top.tap.CLK",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 110,
+          "name": "main.top.tap.ifc_tap_fsm_bwTMS",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 80,
+          "name": "main.top.tap.TDO",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 81,
+          "name": "main.top.tap.ifc_bwTDI",
+          "numberFormat": "binary",
+          "colorIndex": 0,
+          "renderType": "binary",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 112,
+          "name": "main.top.tap.ifc_tap_fsm_rState",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "Instruction Reg",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 107,
+          "name": "main.top.tap.ifc_jtagIR_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 106,
+          "name": "main.top.tap.ifc_jtagIR_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "signal-group",
+      "groupName": "REG0",
+      "children": [
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 54,
+          "name": "main.top.reg0_rSR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        },
+        {
+          "dataType": "netlist-variable",
+          "netlistId": 53,
+          "name": "main.top.reg0_rHR",
+          "numberFormat": "hexadecimal",
+          "colorIndex": 0,
+          "renderType": "multiBit",
+          "valueLinkCommand": ""
+        }
+      ]
+    },
+    {
+      "dataType": "netlist-variable",
+      "netlistId": 43,
+      "name": "main.top.oocd_driver_tck",
+      "numberFormat": "binary",
+      "colorIndex": 0,
+      "renderType": "binary",
+      "valueLinkCommand": ""
+    }
+  ]
+}

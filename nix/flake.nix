@@ -14,7 +14,7 @@
             in { 
                 devShell = with pkgs; pkgs.mkShellNoCC {
                     packages = with pkgs; [
-                        gcc13
+                        gcc
                         cmake
                         bluespec
                         yosys
