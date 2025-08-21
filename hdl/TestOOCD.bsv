@@ -14,8 +14,8 @@ import ClockUtil :: *;
 
 `define IR_WIDTH 8
 
-(* synthesize *)
-module mkTAP(JTAG_TAP_Controller_ifc#(1));
+// (* synthesize *)
+module mkTAP#(Bit#(1) tdi)(JTAG_TAP_Controller_ifc#(1));
 
     let tck <- exposeCurrentClock;
     let trst <- exposeCurrentReset;
@@ -29,7 +29,15 @@ module mkTAP(JTAG_TAP_Controller_ifc#(1));
         )
     };
     
-    JTAG_TAP_Controller_ifc#(1) ifc <- mkJTAG_TAP_Controller(jtag_config, 0, True, clocked_by tck, reset_by trst);
+    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hC0DEAFFE, clocked_by tck, reset_by trst);
+    JTAG_TAP_Controller_ifc#(1) ifc <- mkJTAG_TAP_Controller(
+        jtag_config, 0, True,
+        vec(reg0.tdo),
+        clocked_by tck, reset_by trst
+    );
+
+    mkConnection(reg0.tdi, tdi);
+    jtagConnect(ifc.tap_ctrl, reg0.ctrl, 0);
 
     return ifc;
 endmodule
@@ -45,11 +53,7 @@ module mkTestOOCD();
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
 
-    let tap <- mkTAP(clocked_by tck, reset_by trst);
-    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hC0DEAFFE, clocked_by tck, reset_by trst);
-
-    mkConnection(reg0.tdi, jtag_stim.int_tdi);
-    jtagConnect(tap.tap_ctrl, reg0.ctrl, 0);
+    let tap <- mkTAP(jtag_stim.int_tdi, clocked_by tck, reset_by trst);
 
     //connect TAP to driver
     mkConnection(toGet(oocd_driver.ext_tck),    toPut(jtag_stim.ext_tck));

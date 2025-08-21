@@ -126,7 +126,8 @@ endmodule
 module mkJTAG_TAP_Controller#(
     JTAG_TAP_Config_t#(n, w) tap_cfg,
     JTAGInstruction_t#(w) instr_idcode,
-    Bool reset_idcode_not_bypass
+    Bool reset_idcode_not_bypass,
+    Vector#(n, Bit#(1)) vTDO_up
     )(JTAG_TAP_Controller_ifc#(n)) provisos(Add#(1, a__, w));
 
     let tck <- exposeCurrentClock;
@@ -153,13 +154,13 @@ module mkJTAG_TAP_Controller#(
 
     /* TDO MUX
     */
-    Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
+    // Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
 
     ReadOnly#(Vector#(n, Bool)) sel_crossed <- mkNullCrossingWire(tck_inv, vSelect);
     ReadOnly#(Bit#(w)) ir_crossed <- mkNullCrossingWire(tck_inv, jtagIR.reg_o());
-    ReadOnly#(Bit#(1)) idc_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagIDCode.ctrl.tdo());
-    ReadOnly#(Bit#(1)) byp_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagBypass.ctrl.tdo());
-    ReadOnly#(Vector#(n, Bit#(1))) tdos_crossed <- mkNullCrossingWire(tck_inv, readVReg(vTDO_up));
+    ReadOnly#(Bit#(1)) idc_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagIDCode.tdo());
+    ReadOnly#(Bit#(1)) byp_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagBypass.tdo());
+    ReadOnly#(Vector#(n, Bit#(1))) tdos_crossed <- mkNullCrossingWire(tck_inv, vTDO_up);
     
     Bit#(1) int_tdo = 0;
     if(pack(sel_crossed) == 0 && ir_crossed == 0)
@@ -171,7 +172,10 @@ module mkJTAG_TAP_Controller#(
             if(sel_crossed[i])
                 int_tdo = tdos_crossed[i];
     //internal tdo signal which is updated on the falling edge and then null-crossed back
-    ReadOnly#(Bit#(1)) tdo_crossed <- mkNullCrossingWire(tck, int_tdo);
+    CrossingReg#(Bit#(1)) tdo_out <- mkNullCrossingReg(tck, 0, clocked_by tck_inv, reset_by trst_inv);
+    rule rrr;
+        tdo_out <= int_tdo;
+    endrule
 
     Wire#(Bit#(1)) bwTDI <- mkBypassWire;
     
@@ -204,7 +208,7 @@ module mkJTAG_TAP_Controller#(
         jtagIR.ctrl.sel(True);
     endrule
 
-    method tdo = tdo_crossed;
+    method tdo = tdo_out.crossed;
     method tdi = bwTDI._write;
     method tms = tap_fsm.tms;
 
@@ -213,7 +217,7 @@ module mkJTAG_TAP_Controller#(
         method capture = tap_fsm.ctrl.capture_dr;
         method shift = tap_fsm.ctrl.shift_dr;
 
-        interface tdo_up = map(reg_to_write_only, map(asReg, vTDO_up));
+        // interface tdo_up = map(reg_to_write_only, map(asReg, vTDO_up));
         interface select = vSelect;
     endinterface
 

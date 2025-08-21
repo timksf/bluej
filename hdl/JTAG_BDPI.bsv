@@ -15,10 +15,10 @@ endinterface
 
 module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
 
-    Reg#(Bit#(1)) tck <- mkRegA(0);
-    Reg#(Bit#(1)) tms <- mkRegA(0);
-    Reg#(Bit#(1)) tdi <- mkRegA(0);
-    Reg#(Bit#(1)) tdo <- mkRegA(0);
+    Reg#(Bit#(1)) tck <- mkWire; //mkRegA(0);
+    Reg#(Bit#(1)) tms <- mkWire; //mkRegA(0);
+    Reg#(Bit#(1)) tdi <- mkWire; //mkRegA(0);
+    Reg#(Bit#(1)) tdo <- mkWire; //mkRegA(0);
 
     Reg#(Bool) rg_started <- mkReg(False);
     Reg#(Bool) rg_connected <- mkReg(False);

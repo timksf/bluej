@@ -13,7 +13,7 @@ import ClockUtil :: *;
 `define IR_WIDTH 8
 
 (* synthesize *)
-module mkDUT(JTAG_TAP_Controller_ifc#(1));
+module mkDUT#(Bit#(1) tdi)(JTAG_TAP_Controller_ifc#(1));
 
     let tck <- exposeCurrentClock;
     let trst <- exposeCurrentReset;
@@ -25,7 +25,12 @@ module mkDUT(JTAG_TAP_Controller_ifc#(1));
         instrs: vec('h02)
     };
     
-    JTAG_TAP_Controller_ifc#(1) ifc <- mkJTAG_TAP_Controller(jtag_config, 0, True, clocked_by tck, reset_by trst);
+    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hDEADBEEF, clocked_by tck, reset_by trst);
+    JTAG_TAP_Controller_ifc#(1) ifc <- mkJTAG_TAP_Controller(jtag_config, 0, True, vec(reg0.tdo), clocked_by tck, reset_by trst);
+
+    //connect custom data register
+    mkConnection(reg0.tdi, tdi);
+    jtagConnect(ifc.tap_ctrl, reg0.ctrl, 0);
 
     return ifc;
 endmodule
@@ -43,13 +48,7 @@ module mkTestbench();
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
 
-    let dut <- mkDUT(clocked_by tck, reset_by trst);
-
-    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hDEADBEEF, clocked_by tck, reset_by trst);
-
-    //connect custom data register
-    mkConnection(reg0.tdi, jtag_stim.int_tdi);
-    jtagConnect(dut.tap_ctrl, reg0.ctrl, 0);
+    let dut <- mkDUT(jtag_stim.int_tdi, clocked_by tck, reset_by trst);
 
     Reg#(Bit#(32)) rCount <- mkRegU;
     Reg#(Bit#(33)) rOut <- mkReg(0);

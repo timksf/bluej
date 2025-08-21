@@ -15,6 +15,7 @@ interface JTAG_Reg_ifc#(type t);
     method t reg_o();
     method Bool wr_o();
     method Action tdi(Bit#(1) t);
+    method Bit#(1) tdo();
 
     interface JTAG_Ctrl_Dn_ifc ctrl;
 
@@ -63,9 +64,9 @@ module mkJTAGRegR#(t reg_i, JTAG_Reg_Reset#(t) r)(JTAG_Reg_ifc#(t)) provisos(Bit
     method reg_o    = unpack(rHR);
     method wr_o     = rWR; //indicate update after shift
     method tdi      = bwTDI._write;
+    method tdo      = rSR[0];
     
     interface JTAG_Ctrl_Dn_ifc ctrl;
-        method tdo      = rSR[0];
         method capture  = bwCapture._write;
         method shift    = bwShift._write;
         method update   = bwUpdate._write;
@@ -102,9 +103,9 @@ module mkJTAGBypass(JTAG_Reg_ifc#(Bit#(1)));
     method reg_o    = rHR;
     method wr_o     = bwSelect && bwUpdate; //indicate update after shift
     method tdi      = bwTDI._write;
-    
+    method tdo      = rSR;
+
     interface JTAG_Ctrl_Dn_ifc ctrl;
-        method tdo      = rSR;
         method capture  = bwCapture._write;
         method shift    = bwShift._write;
         method update   = bwUpdate._write;

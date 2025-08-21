@@ -10,7 +10,7 @@ interface JTAG_Ctrl_Up_ifc#(numeric type n);
     method Bool shift;
 
     interface Vector#(n, Bool) select;
-    interface Vector#(n, WriteOnly#(Bit#(1))) tdo_up;
+    // interface Vector#(n, WriteOnly#(Bit#(1))) tdo_up;
 
 endinterface
 
@@ -22,7 +22,7 @@ interface JTAG_Ctrl_Dn_ifc;
 
     method Action sel(Bool b);
 
-    method Bit#(1) tdo();
+    // method Bit#(1) tdo();
 endinterface
 
 module jtagConnect#(JTAG_Ctrl_Up_ifc#(n) tap, JTAG_Ctrl_Dn_ifc jtag_target, Integer i)(Empty);
@@ -37,9 +37,9 @@ module jtagConnect#(JTAG_Ctrl_Up_ifc#(n) tap, JTAG_Ctrl_Dn_ifc jtag_target, Inte
         jtag_target.sel(tap.select[i]);
     endrule
 
-    rule rconn_tdo;
-        tap.tdo_up[i] <= jtag_target.tdo;
-    endrule
+    // rule rconn_tdo;
+    //     tap.tdo_up[i] <= jtag_target.tdo;
+    // endrule
 
 endmodule
 
@@ -55,8 +55,6 @@ function function Action _f(t b) reg_write_f(Reg#(t) r) provisos(Bits#(t, s));
 endfunction
 
 typedef Bit#(w) JTAGInstruction_t#(numeric type w);
-
-// typedef Vector#(n, JTAGInstruction_t#(w)) JTAG_TAP_Config_t#(numeric type n, numeric type w);
 
 typedef struct {
     Bit#(11) idcode_man;
