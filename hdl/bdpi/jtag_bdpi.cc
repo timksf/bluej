@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-int32_t c_socket_init() {
+int32_t c_socket_init(uint32_t __unused) {
     int32_t socket_fd;
     int32_t ret;
 
@@ -56,7 +56,19 @@ int32_t c_socket_accept(int32_t socket_fd) {
     return client_fd;
 }
 
-uint32_t c_socket_process(int32_t fd, uint8_t tdo) {
+uint32_t c_send_tdo(int32_t fd, uint8_t tdo) {
+    int32_t ret;
+    uint8_t val;
+
+    val = tdo == 1 ? '1' : '0';
+    ret = write(fd, &val, 1);
+    if(ret == -1)
+        printf("Failed to respond to send TDO to OpenOCD via socket\n");
+
+    return ret;
+}
+
+int32_t c_socket_process(int32_t fd, uint8_t tdo) {
     int32_t ret;
     char buf, val;
 
@@ -83,10 +95,12 @@ uint32_t c_socket_process(int32_t fd, uint8_t tdo) {
         }
         case 'R': // - Read request
         {
-            val = tdo == 1 ? '1' : '0';
-            ret = write(fd, &val, 1);
-            if (ret == -1)
-                printf("Failed to respond to OpenOCD via socket\n");
+            // val = tdo == 1 ? '1' : '0';
+            // ret = write(fd, &val, 1);
+            // if (ret == -1)
+            //     printf("Failed to respond to OpenOCD via socket\n");
+            ret = (1 << 16);
+            // printf("Read request %08x\n", ret);
             break;
         }
         case 'Q': // - Quit request

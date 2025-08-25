@@ -19,6 +19,7 @@
                         bluespec
                         yosys
                         iverilog
+                        verilator
                         # tk-8_5
                     ];
                 };

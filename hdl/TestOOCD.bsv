@@ -68,7 +68,8 @@ module mkTestOOCD();
 
     Stmt s = seq
         $display("Hello");
-        await(False);
+        delay(500000);
+        // await(False);
     endseq;
 
     mkAutoFSM(s, clocked_by bus_clk, reset_by bus_rst);
