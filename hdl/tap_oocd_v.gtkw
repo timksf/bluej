@@ -1,0 +1,46 @@
+[*]
+[*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
+[*] Sat Aug 30 15:48:45 2025
+[*]
+[dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
+[dumpfile_mtime] "Sat Aug 30 11:18:54 2025"
+[dumpfile_size] 29383202
+[savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_oocd_v.gtkw"
+[timestart] 1488890
+[size] 2560 1393
+[pos] -1 -1
+*-4.800000 1488946 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] main.
+[treeopen] main.top.
+[treeopen] main.top.jtag_stim.
+[sst_width] 448
+[signals_width] 314
+[sst_expanded] 1
+[sst_vpaned_height] 433
+@28
+main.top.bus_clk.CLK_OUT
+@200
+-OOCD Driver
+@28
+main.top.\oocd_driver_tck$wget
+main.top.\oocd_driver_tms$wget
+main.top.\oocd_driver_tdi$wget
+main.top.\oocd_driver_tdo$wget
+@200
+-JTAG STIM
+@28
+main.top.jtag_stim.jtag_clk_tck_clock.CLK_OUT
+main.top.\jtag_stim$int_tms
+main.top.\jtag_stim$int_tdi
+main.top.\jtag_stim$int_tdo_b
+main.top.\jtag_stim$ext_tdo
+main.top.\tap_ifc_jtagIDCode_i_bwSelect$wget
+@200
+-TAp
+@2022
+^1 /home/tim/Documents/HardwareDescription/bluej/hdl/tap_states.txt
+main.top.tap_ifc_tap_fsm_rState[3:0]
+@22
+main.top.tap_ifc_jtagIDCode_i_rSR[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -47,8 +47,10 @@ module mkTestOOCD();
     let bus_clk <- mkAbsoluteClock(0, 2);
     let bus_rst <- mkAsyncResetFromCR(2, bus_clk);
 
+    Wire#(Bit#(1)) int_tdo <- mkWire;
+
     let oocd_driver <- mkJTAG_Driver_OOCD(clocked_by bus_clk, reset_by bus_rst);
-    let jtag_stim <- mkJTAGShim(clocked_by bus_clk, reset_by bus_rst);
+    JTAG_Stim_ifc jtag_stim <- mkJTAGShim(int_tdo, clocked_by bus_clk, reset_by bus_rst);
     
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
@@ -64,12 +66,12 @@ module mkTestOOCD();
     
     mkConnection(toGet(jtag_stim.int_tms),  toPut(tap.tms));
     mkConnection(toGet(jtag_stim.int_tdi),  toPut(tap.tdi));
-    mkConnection(toGet(tap.tdo),            toPut(jtag_stim.int_tdo));
+    mkConnection(toGet(tap.tdo),            toPut(asReg(int_tdo)));
 
     Stmt s = seq
         $display("Hello");
-        delay(500000);
-        // await(False);
+        // delay(500000);
+        await(False);
     endseq;
 
     mkAutoFSM(s, clocked_by bus_clk, reset_by bus_rst);

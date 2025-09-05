@@ -108,7 +108,7 @@ interface JTAG_Stim_ifc;
     //TCK clock domain
     method Bit#(1) int_tms();
     method Bit#(1) int_tdi();
-    method Action int_tdo(Bit#(1) b);
+    // method Action int_tdo(Bit#(1) b);
 
     //default clock domain
     method Action ext_trst(Bit#(1) b);
@@ -121,7 +121,8 @@ interface JTAG_Stim_ifc;
     interface Reset trst_out;
 endinterface
 
-module mkJTAGShim(JTAG_Stim_ifc);
+(* synthesize *)
+module mkJTAGShim#(Bit#(1) int_tdo)(JTAG_Stim_ifc);
 
     let clk <- exposeCurrentClock();
     let rst <- exposeCurrentReset();
@@ -130,17 +131,18 @@ module mkJTAGShim(JTAG_Stim_ifc);
 
     CrossingReg#(Bit#(1)) tms_in  <- mkNullCrossingReg(jtag_clk.tck_out, 0);
     CrossingReg#(Bit#(1)) tdi_in  <- mkNullCrossingReg(jtag_clk.tck_out, 0);
-    CrossingReg#(Bit#(1)) tdo_out <- mkNullCrossingReg(clk, 0, clocked_by jtag_clk.tck_out, reset_by jtag_clk.trst_out);
+    ReadOnly#(Bit#(1)) tdo_out <- mkNullCrossingWire(clk, int_tdo, clocked_by jtag_clk.tck_out, reset_by jtag_clk.trst_out);
+    // mkNullCrossingReg(clk, 0, clocked_by jtag_clk.tck_out, reset_by jtag_clk.trst_out);
 
     method ext_trst = jtag_clk.trst_in;
     method ext_tck = jtag_clk.tck_in;
     method ext_tdi = tdi_in._write;
     method ext_tms = tms_in._write;
-    method ext_tdo = tdo_out.crossed;
+    method ext_tdo = tdo_out; //tdo_out.crossed;
 
     method int_tdi = tdi_in.crossed;
     method int_tms = tms_in.crossed;
-    method int_tdo = tdo_out._write;
+    // method int_tdo = tdo_out._write;
 
     interface tck_out = jtag_clk.tck_out;
     interface trst_out = jtag_clk.trst_out;
