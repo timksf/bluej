@@ -8,7 +8,7 @@ CFLAGS=-fPIC -Wall
 	gcc $(CFLAGS) -c $< -o $@
 
 all: $(OBJECTS_BDPI)
-	echo "[BDPI] Compiled: $(OBJECTS_BDPI)"
+	@echo "[BDPI] Compiled: $(OBJECTS_BDPI)"
 
 clean: 
 	rm -f *.o

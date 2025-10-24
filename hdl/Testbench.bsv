@@ -12,8 +12,8 @@ import ClockUtil :: *;
 
 `define IR_WIDTH 8
 
-(* synthesize *)
-module mkDUT#(Bit#(1) tdi)(JTAG_TAP_Controller_ifc#(1));
+// (* synthesize *)
+module mkDUT#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(1));
 
     let tck <- exposeCurrentClock;
     let trst <- exposeCurrentReset;
@@ -26,10 +26,17 @@ module mkDUT#(Bit#(1) tdi)(JTAG_TAP_Controller_ifc#(1));
     };
     
     JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hDEADBEEF, clocked_by tck, reset_by trst);
-    JTAG_TAP_Controller_ifc#(1) ifc <- mkJTAG_TAP_Controller(jtag_config, 0, True, vec(reg0.tdo), clocked_by tck, reset_by trst);
+    JTAG_TAP_Controller_ifc#(1) ifc <- mkJTAG_TAP_Controller(
+        jtag_config,    //tap config
+        0,              //IDCODE instruction
+        True,           //reset to idcode not bypass
+        vec(as_read_only(reg0.tdo)),  //upstream TDOs
+        tdo_clk, tdo_rst,
+        clocked_by tck, reset_by trst
+    );
 
     //connect custom data register
-    mkConnection(reg0.tdi, tdi);
+    mkConnection(reg0.tdi, ifc.int_tdi);
     jtagConnect(ifc.tap_ctrl, reg0.ctrl, 0);
 
     return ifc;
@@ -37,7 +44,7 @@ endmodule
 
 module mkTestbench();
 
-    let jtag_stim <- mkJTAGShim;
+    let jtag_stim <- mkJTAGShim();
 
     Wire#(Bit#(1)) wtck <- mkWire;
     Wire#(Bit#(1)) wtrst <- mkWire;
@@ -48,7 +55,7 @@ module mkTestbench();
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
 
-    let dut <- mkDUT(jtag_stim.int_tdi, clocked_by tck, reset_by trst);
+    let dut <- mkDUT(jtag_stim.tdo_clk, jtag_stim. tdo_rst, clocked_by tck, reset_by trst);
 
     Reg#(Bit#(32)) rCount <- mkRegU;
     Reg#(Bit#(33)) rOut <- mkReg(0);
@@ -62,6 +69,7 @@ module mkTestbench();
 
     mkConnection(toGet(jtag_stim.int_tms),  toPut(dut.tms));
     mkConnection(toGet(jtag_stim.int_tdi),  toPut(dut.tdi));
+
     mkConnection(toGet(dut.tdo),            toPut(jtag_stim.int_tdo));
 
     Stmt s = {

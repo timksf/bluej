@@ -57,6 +57,7 @@ interface JTAG_TAP_Controller_ifc#(numeric type n);
     (* prefix="", result="TDO" *)
     method Bit#(1) tdo();
 
+    method Bit#(1) int_tdi();
     interface JTAG_Ctrl_Up_ifc#(n) tap_ctrl;
 
 endinterface
@@ -122,17 +123,19 @@ endmodule
 // (*
 //     default_clock_osc="TCK",
 //     default_reset="TRST"
-// *)
+// *)   
 module mkJTAG_TAP_Controller#(
     JTAG_TAP_Config_t#(n, w) tap_cfg,
     JTAGInstruction_t#(w) instr_idcode,
     Bool reset_idcode_not_bypass,
-    Vector#(n, Bit#(1)) vTDO_up
+    Vector#(n, ReadOnly#(Bit#(1))) vTDO_up,
+    Clock tdo_clk,
+    Reset tdo_rst
     )(JTAG_TAP_Controller_ifc#(n)) provisos(Add#(1, a__, w));
 
     let tck <- exposeCurrentClock;
-    let tck_inv <- invertCurrentClock;
-    let trst_inv <- mkAsyncResetFromCR(0, tck_inv);
+    let tck_inv = tdo_clk;
+    let trst_inv = tdo_rst;
 
     //IR has to be reset to IDCODE/BYPASS
     //BYPASS has to be identified at least with all 1's
@@ -152,16 +155,14 @@ module mkJTAG_TAP_Controller#(
         vSelect[i] = jtagIR.reg_o() == tap_cfg.instrs[i];
     end
 
-    /* TDO MUX
-    */
-    // Vector#(n, Wire#(Bit#(1))) vTDO_up <- replicateM(mkBypassWire); //upstream TDO
-
     ReadOnly#(Vector#(n, Bool)) sel_crossed <- mkNullCrossingWire(tck_inv, vSelect);
     ReadOnly#(Bit#(w)) ir_crossed <- mkNullCrossingWire(tck_inv, jtagIR.reg_o());
     ReadOnly#(Bit#(1)) idc_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagIDCode.tdo());
     ReadOnly#(Bit#(1)) byp_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagBypass.tdo());
-    ReadOnly#(Vector#(n, Bit#(1))) tdos_crossed <- mkNullCrossingWire(tck_inv, vTDO_up);
+    ReadOnly#(Vector#(n, Bit#(1))) tdos_crossed <- mkNullCrossingWire(tck_inv, read_v_ro(vTDO_up));
     
+    /* TDO MUX
+    */
     Bit#(1) int_tdo = 0;
     if(pack(sel_crossed) == 0 && ir_crossed == 0)
         int_tdo = idc_tdo_crossed;
@@ -171,12 +172,7 @@ module mkJTAG_TAP_Controller#(
         for(Integer i = 0; i < valueof(n); i = i + 1)
             if(sel_crossed[i])
                 int_tdo = tdos_crossed[i];
-    //internal tdo signal which is updated on the falling edge and then null-crossed back
-    CrossingReg#(Bit#(1)) tdo_out <- mkNullCrossingReg(tck, 0, clocked_by tck_inv, reset_by trst_inv);
-    rule rrr;
-        tdo_out <= int_tdo;
-    endrule
-
+    
     Wire#(Bit#(1)) bwTDI <- mkBypassWire;
     
     //only activate bypass/idcode when no matching instruction was found in the config
@@ -208,16 +204,17 @@ module mkJTAG_TAP_Controller#(
         jtagIR.ctrl.sel(True);
     endrule
 
-    method tdo = tdo_out.crossed;
+    method tdo = int_tdo;
     method tdi = bwTDI._write;
     method tms = tap_fsm.tms;
+
+    method int_tdi = bwTDI;
 
     interface JTAG_Ctrl_Up_ifc tap_ctrl;
         method update = tap_fsm.ctrl.update_dr;
         method capture = tap_fsm.ctrl.capture_dr;
         method shift = tap_fsm.ctrl.shift_dr;
 
-        // interface tdo_up = map(reg_to_write_only, map(asReg, vTDO_up));
         interface select = vSelect;
     endinterface
 
