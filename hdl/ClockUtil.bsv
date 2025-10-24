@@ -70,6 +70,9 @@ interface JTAGClock_ifc;
     interface Clock tck_out;
     interface Reset trst_out;
 
+    interface Clock tdo_clk;
+    interface Reset tdo_rst;
+
 endinterface
 
 module mkJTAGClockAdapter#(Bit#(1) clk_idle)(JTAGClock_ifc);
@@ -79,19 +82,18 @@ module mkJTAGClockAdapter#(Bit#(1) clk_idle)(JTAGClock_ifc);
         I have not found a better way of clocking the JTAG only sporadically when data is present
         on the JTAG signal lines.
         One remaining caveat is that we cannot use a Wire as input to mkNullCrossingWire, otherwise 
-        this wire would have to be written previous to the clock domain crossing, although the compiler 
-        requires the null crossing rule to be the very first action in a cycle.
-        We use a DReg such that the clock idle level can be selected upon module creation and does not 
-        have to be remembered every time.
-    
-        ... or we'll just use MakeClockIfc and MakeResetIfc in combination with mkNullCrossingReg
+        this wire would have to be written before the clock domain crossing, although the compiler 
+        requires the null crossing rule to be the *very* first action in a cycle.
     */
 
     let clk <- exposeCurrentClock;
     let rst <- exposeCurrentReset;
-
+    
     MakeClockIfc#(Bit#(1)) tck_clock <- mkUngatedClock(clk_idle);
     MakeResetIfc trst <- mkReset(0, True, tck_clock.new_clk);
+
+    let clk_inv <- mkClockInverter(clocked_by tck_clock.new_clk, reset_by trst.new_rst);
+    let rst_inv <- mkAsyncReset(0, trst.new_rst, clk_inv.slowClock);
     
     method tck_in = tck_clock.setClockValue;
     method Action trst_in(Bit#(1) w);
@@ -101,6 +103,10 @@ module mkJTAGClockAdapter#(Bit#(1) clk_idle)(JTAGClock_ifc);
 
     interface tck_out  = tck_clock.new_clk;
     interface trst_out = trst.new_rst;
+
+    interface tdo_clk = clk_inv.slowClock;
+    interface tdo_rst = rst_inv;
+
 endmodule
 
 interface JTAG_Stim_ifc;
@@ -108,7 +114,7 @@ interface JTAG_Stim_ifc;
     //TCK clock domain
     method Bit#(1) int_tms();
     method Bit#(1) int_tdi();
-    // method Action int_tdo(Bit#(1) b);
+    method Action int_tdo(Bit#(1) b);
 
     //default clock domain
     method Action ext_trst(Bit#(1) b);
@@ -119,10 +125,20 @@ interface JTAG_Stim_ifc;
 
     interface Clock tck_out;
     interface Reset trst_out;
+
+    interface Clock tdo_clk;
+    interface Reset tdo_rst;
 endinterface
 
+/*
+    This module translates JTAG signals from bit inputs into bluespec clock&reset and control signals 
+    in the right clock domain.
+    TMS and TDI are transferred from the default clock domain into the TCK domain
+    TDO is transferred from {tck, reset} into the default clock domain associated with the bluespec interface 
+    of this module.
+*/
 (* synthesize *)
-module mkJTAGShim#(Bit#(1) int_tdo)(JTAG_Stim_ifc);
+module mkJTAGShim(JTAG_Stim_ifc);
 
     let clk <- exposeCurrentClock();
     let rst <- exposeCurrentReset();
@@ -131,21 +147,23 @@ module mkJTAGShim#(Bit#(1) int_tdo)(JTAG_Stim_ifc);
 
     CrossingReg#(Bit#(1)) tms_in  <- mkNullCrossingReg(jtag_clk.tck_out, 0);
     CrossingReg#(Bit#(1)) tdi_in  <- mkNullCrossingReg(jtag_clk.tck_out, 0);
-    ReadOnly#(Bit#(1)) tdo_out <- mkNullCrossingWire(clk, int_tdo, clocked_by jtag_clk.tck_out, reset_by jtag_clk.trst_out);
-    // mkNullCrossingReg(clk, 0, clocked_by jtag_clk.tck_out, reset_by jtag_clk.trst_out);
+    CrossingReg#(Bit#(1)) tdo_out <- mkNullCrossingReg(clk, 0, clocked_by jtag_clk.tdo_clk, reset_by jtag_clk.tdo_rst);
 
     method ext_trst = jtag_clk.trst_in;
     method ext_tck = jtag_clk.tck_in;
     method ext_tdi = tdi_in._write;
     method ext_tms = tms_in._write;
-    method ext_tdo = tdo_out; //tdo_out.crossed;
+    method ext_tdo = tdo_out.crossed;
 
     method int_tdi = tdi_in.crossed;
     method int_tms = tms_in.crossed;
-    // method int_tdo = tdo_out._write;
+    method int_tdo = tdo_out._write;
 
     interface tck_out = jtag_clk.tck_out;
     interface trst_out = jtag_clk.trst_out;
+
+    interface tdo_clk = jtag_clk.tdo_clk;
+    interface tdo_rst = jtag_clk.tdo_rst;
 
 endmodule
 

@@ -1,11 +1,11 @@
 [*]
 [*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
-[*] Fri Oct 24 21:40:54 2025
+[*] Fri Oct 24 21:40:43 2025
 [*]
 [dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
 [dumpfile_mtime] "Fri Oct 24 21:21:03 2025"
 [dumpfile_size] 83978
-[savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_fsm.gtkw"
+[savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_fsm_v.gtkw"
 [timestart] 0
 [size] 2560 1361
 [pos] -2561 31

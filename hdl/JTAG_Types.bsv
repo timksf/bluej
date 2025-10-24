@@ -10,8 +10,6 @@ interface JTAG_Ctrl_Up_ifc#(numeric type n);
     method Bool shift;
 
     interface Vector#(n, Bool) select;
-    // interface Vector#(n, WriteOnly#(Bit#(1))) tdo_up;
-
 endinterface
 
 (* always_ready *)
@@ -19,10 +17,7 @@ interface JTAG_Ctrl_Dn_ifc;
     method Action update(Bool b);
     method Action capture(Bool b);
     method Action shift(Bool b);
-
     method Action sel(Bool b);
-
-    // method Bit#(1) tdo();
 endinterface
 
 module jtagConnect#(JTAG_Ctrl_Up_ifc#(n) tap, JTAG_Ctrl_Dn_ifc jtag_target, Integer i)(Empty);
@@ -37,11 +32,30 @@ module jtagConnect#(JTAG_Ctrl_Up_ifc#(n) tap, JTAG_Ctrl_Dn_ifc jtag_target, Inte
         jtag_target.sel(tap.select[i]);
     endrule
 
-    // rule rconn_tdo;
-    //     tap.tdo_up[i] <= jtag_target.tdo;
-    // endrule
-
 endmodule
+
+// module jtagBuild#(
+//      //TODO: either use this or context based code
+//     JTAG_TAP_Config_t#(n, w) tap_cfg,
+//     Vector#(n, JTAG_Ctrl_Dn_ifc) jtag_endpoints
+//     )(JTAG_TAP_Controller_ifc#(n));
+
+//     for(Integer i = 0; i < n; i = i + 1) begin
+//         mkConnection(reg0.tdi, tdi);
+//         jtagConnect(ifc.tap_ctrl, jtag_endpoints[i], i);
+//     end
+// endmodule
+
+function Vector#(sz, t) read_v_ro(Vector#(sz, ReadOnly#(t)) v) provisos(Bits#(t, s));
+    return map(begin function t f(ReadOnly#(t) e); return e; endfunction f; end, v);
+endfunction
+
+function ReadOnly#(t) as_read_only(t v) provisos(Bits#(t, s));
+    return 
+        interface ReadOnly;
+            method _read = v;
+        endinterface;
+endfunction
 
 function WriteOnly#(t) reg_to_write_only(Reg#(t) r) provisos(Bits#(t, s));
     return 
