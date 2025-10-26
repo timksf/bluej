@@ -136,6 +136,8 @@ endinterface
     TMS and TDI are transferred from the default clock domain into the TCK domain
     TDO is transferred from {tck, reset} into the default clock domain associated with the bluespec interface 
     of this module.
+    This module inadvertently delays all JTAG signals through the introduction of registers, this needs to be handled in
+    the testbench!
 */
 (* synthesize *)
 module mkJTAGShim(JTAG_Stim_ifc);
@@ -166,5 +168,40 @@ module mkJTAGShim(JTAG_Stim_ifc);
     interface tdo_rst = jtag_clk.tdo_rst;
 
 endmodule
+
+// module mkJTAGShim_old#(
+//     Clock tck,
+//     Reset trst,
+//     Bit#(1) ext_tms, 
+//     Bit#(1) ext_tdi,
+//     Bit#(1) int_tdo
+//     )(JTAG_Stim_ifc);
+
+//     let clk <- exposeCurrentClock();
+//     let rst <- exposeCurrentReset();
+
+//     // let jtag_clk <- mkJTAGClockAdapter(1);
+
+//     let tms_in <- mkNullCrossingWire(tck, ext_tms);
+//     let tdi_in <- mkNullCrossingWire(tck, ext_tdi);
+//     let tdo_out <- mkNullCrossingWire(clk, int_tdo);
+
+//     // method ext_trst = jtag_clk.trst_in;
+//     // method ext_tck = jtag_clk.tck_in;
+//     // method ext_tdi = tdi_in._write;
+//     // method ext_tms = tms_in._write;
+//     method ext_tdo = tdo_out;
+
+//     method int_tdi = tdi_in;
+//     method int_tms = tms_in;
+//     // method int_tdo = tdo_out._write;
+
+//     // interface tck_out = jtag_clk.tck_out;
+//     // interface trst_out = jtag_clk.trst_out;
+
+//     // interface tdo_clk = jtag_clk.tdo_clk;
+//     // interface tdo_rst = jtag_clk.tdo_rst;
+
+// endmodule
 
 endpackage

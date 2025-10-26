@@ -1,5 +1,10 @@
 package JTAG_BDPI;
 
+import DReg :: *;
+import Vector :: *;
+
+import JTAG_Types :: *;
+
 import "BDPI" function ActionValue#(Int#(32)) c_socket_init(Bit#(32) dummy);
 import "BDPI" function ActionValue#(Int#(32)) c_socket_accept(Int#(32) fd);
 import "BDPI" function ActionValue#(Int#(32)) c_socket_process(Int#(32) fd, Bit#(1) tdo);
@@ -14,18 +19,21 @@ interface JTAG_Driver_ifc;
     method Action ext_tdo(Bit#(1) b);
 endinterface
 
-module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
+module mkJTAG_Driver_OOCD#(JTAG_TDO_Delay#(n) _unused)(JTAG_Driver_ifc);
 
-    Reg#(Bit#(1)) tck <- mkWire; //mkRegA(0);
-    Reg#(Bit#(1)) tms <- mkWire; //mkRegA(0);
-    Reg#(Bit#(1)) tdi <- mkWire; //mkRegA(0);
-    Reg#(Bit#(1)) tdo <- mkWire; //mkRegA(0);
+    Reg#(Bit#(1)) tck <- mkWire;
+    Reg#(Bit#(1)) tms <- mkWire;
+    Reg#(Bit#(1)) tdi <- mkWire;
+    Reg#(Bit#(1)) tdo <- mkWire;
 
     Reg#(Bool) rg_started <- mkReg(False);
     Reg#(Bool) rg_connected <- mkReg(False);
     Reg#(Int#(32)) rg_sock_fd <- mkRegU;
     Reg#(Int#(32)) rg_data_sock_fd <- mkRegU;
-    Reg#(Bool) rg_send_tdo <- mkReg(False);
+    // Reg#(Bool) rg_send_tdo <- mkReg(False);
+
+    //TDO arrives delayed based on the TAP implementation
+    Vector#(n, Reg#(Bool)) v_rg_send_tdo <- replicateM(mkReg(False));
 
     //init listening socket
     rule r_init if(!rg_started);
@@ -57,14 +65,18 @@ module mkJTAG_Driver_OOCD(JTAG_Driver_ifc);
             tms <= pack(cmd)[1];
             tdi <= pack(cmd)[0];
 
-        end else if(unpack(pack(cmd)[16])) begin
-            rg_send_tdo <= True;
         end
+        if(unpack(pack(cmd)[16])) begin
+            v_rg_send_tdo[valueof(n)-1] <= True;
+        end else 
+            v_rg_send_tdo[valueof(n)-1] <= False;
+        //
+        for(Integer i = 1; i < valueof(n); i = i + 1)
+            v_rg_send_tdo[valueof(n)-1-i] <= v_rg_send_tdo[valueof(n)-i];
     endrule
 
-    rule r_send_tdo if(rg_send_tdo);
+    rule r_send_tdo if(v_rg_send_tdo[0]);
         let ret <- c_send_tdo(rg_data_sock_fd, tdo);
-        rg_send_tdo <= False;
     endrule
 
     method ext_trst = 1'b0;

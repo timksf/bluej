@@ -12,7 +12,7 @@ import ClockUtil :: *;
 
 `define IR_WIDTH 8
 
-// (* synthesize *)
+(* synthesize *)
 module mkDUT#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(1));
 
     let tck <- exposeCurrentClock;
@@ -22,6 +22,7 @@ module mkDUT#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(1));
         idcode_man: 'b00000010111,
         idcode_part: 'h04,
         idcode_ver: 0,
+        reg_tdo: True, //for easier bluesim setup
         instrs: vec('h02)
     };
     
@@ -44,18 +45,20 @@ endmodule
 
 module mkTestbench();
 
-    let jtag_stim <- mkJTAGShim();
+    Wire#(Bit#(1)) wtck     <- mkWire;
+    Wire#(Bit#(1)) wtrst    <- mkWire;
+    Wire#(Bit#(1)) ext_tdi  <- mkWire;
+    Wire#(Bit#(1)) ext_tms  <- mkWire;
+    Wire#(Bit#(1)) ext_tdo  <- mkBypassWire;
 
-    Wire#(Bit#(1)) wtck <- mkWire;
-    Wire#(Bit#(1)) wtrst <- mkWire;
-    Wire#(Bit#(1)) ext_tdi <- mkWire;
-    Wire#(Bit#(1)) ext_tms <- mkWire;
-    Wire#(Bit#(1)) ext_tdo <- mkBypassWire;
+    let jtag_stim <- mkJTAGShim();
 
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
-
-    let dut <- mkDUT(jtag_stim.tdo_clk, jtag_stim. tdo_rst, clocked_by tck, reset_by trst);
+    let tck_inv = jtag_stim.tdo_clk;
+    let trst_inv = jtag_stim.tdo_rst;
+    
+    let dut <- mkDUT(tck_inv, trst_inv, clocked_by tck, reset_by trst);
 
     Reg#(Bit#(32)) rCount <- mkRegU;
     Reg#(Bit#(33)) rOut <- mkReg(0);
@@ -80,16 +83,16 @@ module mkTestbench();
             //read custom register
             jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h02);
             jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
-            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut);
+            jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
             jtag_idle(rCount, wtck, ext_tms, ext_tdi, 1);
             //read IDCODE
             jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h00);
-            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut);
+            jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
             delay(10); //not driving JTAG signals should not have any effect on JTAG hardware
             rOut <= 0;
             //BYPASS
             jtag_ir(rCount, wtck, ext_tms, ext_tdi, Bit#(`IR_WIDTH)'(unpack(-1)));
-            jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'hCAFEAFFE, rOut);
+            jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'hCAFEAFFE, rOut, 1);
             rOut <= rOut >> 1; //bypass results arrive once cycle delayed in relation to TDI
             delay(10);
         endseq
