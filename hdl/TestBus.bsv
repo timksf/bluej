@@ -15,7 +15,7 @@ import ClockUtil :: *;
 `define IR_WIDTH 8
 
 (* synthesize *)
-module mkTAP(JTAG_TAP_Controller_ifc#(2));
+module mkTAP#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(2));
 
     let tck <- exposeCurrentClock;
     let trst <- exposeCurrentReset;
@@ -24,13 +24,20 @@ module mkTAP(JTAG_TAP_Controller_ifc#(2));
         idcode_man: 'b00000010111,
         idcode_part: 'h04,
         idcode_ver: 0,
+        reg_tdo: True, //tdo is registered (on falling tck) in real applications
         instrs: vec(
             'h02, //dummy register
             'hDE //bus control register
         )
     };
     
-    JTAG_TAP_Controller_ifc#(2) ifc <- mkJTAG_TAP_Controller(jtag_config, 0, True, clocked_by tck, reset_by trst);
+    JTAG_TAP_Controller_ifc#(2) ifc <- mkJTAG_TAP_Controller(
+        jtag_config,
+        0,
+        True,
+        vec(as_read_only()),
+        tdo_clk, tdo_rst,
+        clocked_by tck, reset_by trst);
 
     return ifc;
 endmodule
@@ -61,6 +68,8 @@ module mkTestBus();
 
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
+    let tck_inv = jtag_stim.tdo_clk;
+    let trst_inv = jtag_stim.tdo_rst;
 
     let tap <- mkTAP(clocked_by tck, reset_by trst);
     
@@ -118,15 +127,15 @@ module mkTestBus();
     Stmt s = seq
         jtag_reset(rCount, wtck, ext_tms, ext_tdi);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h02);
-        jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut);
+        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
         $display("[%0t] JTAG returned %08X", $time, rOut);
         delay(10);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'hDE);
         rg_req <= tagged Request BusRequest { write_not_read: False, addr: 'h08, data: ? };
-        jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut);
+        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut, 1);
         //some idling to let data arrive
         jtag_idle(rCount, wtck, ext_tms, ext_tdi, 4);
-        jtag_dr_ret(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 0, rOut);
+        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 0, rOut, 1);
         $display("[%0t] ", $time, fshow(JTAG_BusControl#(32,32)'(unpack(rOut))));
         delay(10);
     endseq;

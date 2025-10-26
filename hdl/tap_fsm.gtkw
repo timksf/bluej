@@ -1,17 +1,18 @@
 [*]
 [*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
-[*] Fri Oct 24 21:40:54 2025
+[*] Sun Oct 26 21:07:55 2025
 [*]
 [dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
-[dumpfile_mtime] "Fri Oct 24 21:21:03 2025"
-[dumpfile_size] 83978
+[dumpfile_mtime] "Sun Oct 26 21:07:28 2025"
+[dumpfile_size] 81858
 [savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_fsm.gtkw"
-[timestart] 0
-[size] 2560 1361
-[pos] -2561 31
-*-7.781107 490 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 1376
+[size] 2560 1393
+[pos] -1 -1
+*-6.281107 1669 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] main.
 [treeopen] main.top.
+[treeopen] main.top.jtag_stim.
 [sst_width] 366
 [signals_width] 246
 [sst_expanded] 1
@@ -22,14 +23,14 @@ main.top.rCount[31:0]
 -STIM
 @28
 main.top.jtag_stim.CLK
+main.top.wtck
 main.top.jtag_stim.jtag_clk_tck_clock.CLK_OUT
-main.top.ext_tms
+main.top.jtag_stim.tms_in
 main.top.ext_tdi
-main.top.ext_tdo
-@29
-main.top.dut_ifc_tap_fsm_bwTMS
-@28
 main.top.dut_ifc_bwTDI
+main.top.dut_ifc_tdos_crossed
+main.top.ext_tdo
+main.top.dut_ifc_rg_ext_tdo
 @200
 -TAP
 @28
@@ -40,6 +41,10 @@ main.top.dut_ifc_tap_fsm_rState[3:0]
 @200
 -
 @22
+main.top.dut_ifc_jtagIR_rHR[7:0]
+@23
 main.top.rOut[32:0]
+@24
+main.top.rCount[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

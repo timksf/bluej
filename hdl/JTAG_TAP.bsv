@@ -149,6 +149,8 @@ module mkJTAG_TAP_Controller#(
     JTAG_Reg_ifc#(Bit#(1)) jtagBypass <- mkJTAGBypass();
     JTAG_Reg_ifc#(Bit#(32)) jtagIDCode <- mkJTAGReg({tap_cfg.idcode_man, tap_cfg.idcode_part, tap_cfg.idcode_ver, 1'b1}); //idcode is required to have a 1 as LSB
 
+    Wire#(Bit#(1)) bwTDI <- mkBypassWire;
+
     //instruction decoder based on IR hold register
     Vector#(n, Bool) vSelect = newVector;
     for(Integer i = 0; i < valueof(n); i = i + 1) begin
@@ -163,6 +165,8 @@ module mkJTAG_TAP_Controller#(
     
     /* TDO MUX
     */
+    Reg#(Bit#(1)) rg_ext_tdo <- mkRegU(clocked_by tck_inv, reset_by trst_inv);
+
     Bit#(1) int_tdo = 0;
     if(pack(sel_crossed) == 0 && ir_crossed == 0)
         int_tdo = idc_tdo_crossed;
@@ -172,8 +176,6 @@ module mkJTAG_TAP_Controller#(
         for(Integer i = 0; i < valueof(n); i = i + 1)
             if(sel_crossed[i])
                 int_tdo = tdos_crossed[i];
-    
-    Wire#(Bit#(1)) bwTDI <- mkBypassWire;
     
     //only activate bypass/idcode when no matching instruction was found in the config
     Bool id_sel = pack(vSelect) == 0 && jtagIR.reg_o() == 0;
@@ -200,11 +202,15 @@ module mkJTAG_TAP_Controller#(
     mkConnection(jtagIDCode.ctrl.sel, id_sel);
     mkConnection(jtagIDCode.tdi, bwTDI);
 
+    rule rout;
+        rg_ext_tdo <= int_tdo;
+    endrule
+
     rule rir;
         jtagIR.ctrl.sel(True);
     endrule
 
-    method tdo = int_tdo;
+    method tdo = tap_cfg.reg_tdo ? rg_ext_tdo : int_tdo;
     method tdi = bwTDI._write;
     method tms = tap_fsm.tms;
 

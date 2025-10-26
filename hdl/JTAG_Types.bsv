@@ -74,7 +74,19 @@ typedef struct {
     Bit#(11) idcode_man;
     Bit#(16) idcode_part;
     Bit#(4) idcode_ver;
+    /* When reg_tdo is enabled, a register is inserted after the TDO mux. This register is clocked by an
+    externally supplied clock signal, which ideally should be the inverse of TCK, to adhere to the JTAG spec.
+    However, because the TDO output has to be crossed into the testbench clock domain in a bluesim test setup, 
+    this register can be left out, leaving the output combinational (but still in the TDO clock domain).
+    The null crossing of the TDO signal into the testbench clock domain can then simply be handled by a NullCrossingReg
+    inside the JTAG stimulator module.
+    Another workaround that can be applied to get the correct results in the bluesim testbench is adding another shift-out
+    cycle at the end of a JTAG register read.
+    */
+    Bool reg_tdo;
     Vector#(n, JTAGInstruction_t#(w)) instrs;
 } JTAG_TAP_Config_t#(numeric type n, numeric type w) deriving(FShow, Eq, Bits);
+
+typedef struct {} JTAG_TDO_Delay#(numeric type n);
 
 endpackage
