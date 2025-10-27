@@ -1,22 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
-[*] Tue Aug 26 16:21:20 2025
+[*] Mon Oct 27 21:28:29 2025
 [*]
 [dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
-[dumpfile_mtime] "Tue Aug 26 16:11:19 2025"
-[dumpfile_size] 38409493
+[dumpfile_mtime] "Mon Oct 27 21:24:29 2025"
+[dumpfile_size] 9321568
 [savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_oocd.gtkw"
-[timestart] 826517
+[timestart] 1397221
 [size] 2560 1393
 [pos] -1 -1
-*-4.567551 826533 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-5.767551 1397358 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] main.
 [treeopen] main.top.
 [treeopen] main.top.jtag_stim.
 [sst_width] 483
-[signals_width] 198
+[signals_width] 271
 [sst_expanded] 1
-[sst_vpaned_height] 433
+[sst_vpaned_height] 445
 @200
 -DRIV
 @28
@@ -24,17 +24,25 @@ main.top.oocd_driver_tck
 main.top.oocd_driver_tms
 main.top.oocd_driver_tdi
 main.top.oocd_driver_tdo
+main.top.oocd_driver_v_rg_send_tdo_0
+@29
+main.top.oocd_driver_v_rg_send_tdo_1
 @200
 -STIM
 @28
 main.top.jtag_stim.CLK
 main.top.jtag_stim.jtag_clk_tck_clock.CLK_OUT
 main.top.jtag_stim.tdi_in
-@201
+@200
 -TAP
+@22
+main.top.tap.ifc_jtagIR_rHR[7:0]
+@2022
+^1 /home/tim/Documents/HardwareDescription/bluej/hdl/tap_states.txt
+main.top.tap.ifc_tap_fsm_rState[3:0]
 @28
-main.top.tap_ifc_tap_fsm_bwTMS
-main.top.tap_ifc_bwTDI
-main.top.tap_ifc_tdo_out
+main.top.tap.ifc_rg_ext_tdo
+@22
+main.top.tap.ifc_jtagIDCode_i_rSR[31:0]
 [pattern_trace] 1
 [pattern_trace] 0
