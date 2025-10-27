@@ -64,7 +64,6 @@ module mkJTAG_Driver_OOCD#(JTAG_TDO_Delay#(n) _unused)(JTAG_Driver_ifc);
             tck <= pack(cmd)[2];
             tms <= pack(cmd)[1];
             tdi <= pack(cmd)[0];
-
         end
         if(unpack(pack(cmd)[16])) begin
             v_rg_send_tdo[valueof(n)-1] <= True;
@@ -75,7 +74,7 @@ module mkJTAG_Driver_OOCD#(JTAG_TDO_Delay#(n) _unused)(JTAG_Driver_ifc);
             v_rg_send_tdo[valueof(n)-1-i] <= v_rg_send_tdo[valueof(n)-i];
     endrule
 
-    rule r_send_tdo if(v_rg_send_tdo[0]);
+    rule r_send_tdo if(rg_started && rg_connected && v_rg_send_tdo[0]);
         let ret <- c_send_tdo(rg_data_sock_fd, tdo);
     endrule
 

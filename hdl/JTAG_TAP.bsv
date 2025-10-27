@@ -158,7 +158,9 @@ module mkJTAG_TAP_Controller#(
     end
 
     ReadOnly#(Vector#(n, Bool)) sel_crossed <- mkNullCrossingWire(tck_inv, vSelect);
+    ReadOnly#(Bool) shift_ir_crossed <- mkNullCrossingWire(tck_inv, tap_fsm.ctrl.shift_ir);
     ReadOnly#(Bit#(w)) ir_crossed <- mkNullCrossingWire(tck_inv, jtagIR.reg_o());
+    ReadOnly#(Bit#(1)) ir_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagIR.tdo());
     ReadOnly#(Bit#(1)) idc_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagIDCode.tdo());
     ReadOnly#(Bit#(1)) byp_tdo_crossed <- mkNullCrossingWire(tck_inv, jtagBypass.tdo());
     ReadOnly#(Vector#(n, Bit#(1))) tdos_crossed <- mkNullCrossingWire(tck_inv, read_v_ro(vTDO_up));
@@ -168,7 +170,10 @@ module mkJTAG_TAP_Controller#(
     Reg#(Bit#(1)) rg_ext_tdo <- mkRegU(clocked_by tck_inv, reset_by trst_inv);
 
     Bit#(1) int_tdo = 0;
-    if(pack(sel_crossed) == 0 && ir_crossed == 0)
+    //could make vSelect take prio with && pack(sel_crossed) == 0
+    if(shift_ir_crossed)
+        int_tdo = ir_tdo_crossed;
+    else if(ir_crossed == 0)
         int_tdo = idc_tdo_crossed;
     else if(pack(sel_crossed) == 0 && ir_crossed == pack(instr_bypass))
         int_tdo = byp_tdo_crossed;
@@ -176,13 +181,6 @@ module mkJTAG_TAP_Controller#(
         for(Integer i = 0; i < valueof(n); i = i + 1)
             if(sel_crossed[i])
                 int_tdo = tdos_crossed[i];
-    
-    //only activate bypass/idcode when no matching instruction was found in the config
-    Bool id_sel = pack(vSelect) == 0 && jtagIR.reg_o() == 0;
-    Bool byp_sel = pack(vSelect) == 0 && jtagIR.reg_o() == pack(instr_bypass);
-
-    Bool scan_ir = tap_fsm.ctrl.capture_ir || tap_fsm.ctrl.shift_ir || tap_fsm.ctrl.update_ir;
-    Bool scan_dr = tap_fsm.ctrl.capture_dr || tap_fsm.ctrl.shift_dr || tap_fsm.ctrl.update_dr;
     
     //the IR is the only JTAGReg connected to the IR control lines of the TAP FSM
     mkConnection(jtagIR.ctrl.capture, tap_fsm.ctrl.capture_ir);
