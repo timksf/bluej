@@ -21,6 +21,9 @@ $(NAME)_out: mk$(NAME).ba
 	bsc $(BSC_DIRS) -show-schedule -u -sim -e mk$(MOD) -o $@ $(OBJ_BDPI)
 
 sim: $(NAME)_out
+	./$(NAME)_out 
+
+vcd: $(NAME)_out
 	./$(NAME)_out -V dump.vcd
 
 $(NAME)_outv: $(NAME).bsv dirs

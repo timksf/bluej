@@ -10,9 +10,17 @@
 extern "C" {
 #endif
 
+int tdo_requested, tdo_sent;
+
 int32_t c_socket_init(uint32_t __unused) {
     int32_t socket_fd;
     int32_t ret;
+
+    //disable stdout buffering to not delay prints
+    setvbuf(stdout, NULL, _IONBF, 0); 
+
+    tdo_requested = 0;
+    tdo_sent = 0;
 
     unlink(SOCKET_NAME);
     socket_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -61,11 +69,17 @@ uint32_t c_send_tdo(int32_t fd, uint8_t tdo) {
     uint8_t val;
 
     val = tdo == 1 ? '1' : '0';
+    // printf("Sending TDO %0d/%0d\n", tdo_sent, tdo_requested);
     ret = write(fd, &val, 1);
     if(ret == -1)
-        printf("Failed to respond to send TDO to OpenOCD via socket\n");
+        printf("Failed to send TDO %0d to OpenOCD via socket\n", tdo_sent);
 
+    tdo_sent++;
     return ret;
+}
+
+void c_print_status() {
+    printf("TDO req: %0d TDO resp: %0d\n", tdo_requested, tdo_sent);
 }
 
 int32_t c_socket_process(int32_t fd, uint8_t tdo) {
@@ -100,6 +114,7 @@ int32_t c_socket_process(int32_t fd, uint8_t tdo) {
             // if (ret == -1)
             //     printf("Failed to respond to OpenOCD via socket\n");
             ret = (1 << 16);
+            tdo_requested++;
             // printf("Read request %08x\n", ret);
             break;
         }

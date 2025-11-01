@@ -182,6 +182,9 @@ module mkJTAG_TAP_Controller#(
             if(sel_crossed[i])
                 int_tdo = tdos_crossed[i];
     
+    Bool id_sel = pack(vSelect) == 0 && jtagIR.reg_o() == 0;
+    Bool byp_sel = pack(vSelect) == 0 && jtagIR.reg_o() == pack(instr_bypass);
+
     //the IR is the only JTAGReg connected to the IR control lines of the TAP FSM
     mkConnection(jtagIR.ctrl.capture, tap_fsm.ctrl.capture_ir);
     mkConnection(jtagIR.ctrl.shift, tap_fsm.ctrl.shift_ir);
@@ -207,6 +210,12 @@ module mkJTAG_TAP_Controller#(
     rule rir;
         jtagIR.ctrl.sel(True);
     endrule
+
+    if(tap_cfg.debug)
+        rule rdebug;
+            if(jtagIR.wr_o)
+                $display("TAP: update IR to %0x", jtagIR.reg_o);
+        endrule
 
     method tdo = tap_cfg.reg_tdo ? rg_ext_tdo : int_tdo;
     method tdi = bwTDI._write;

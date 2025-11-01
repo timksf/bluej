@@ -24,7 +24,9 @@ module mkTAP#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(1));
         idcode_man: 'h3A7,
         idcode_part: 'h04,
         idcode_ver: 0,
-        reg_tdo: True,
+        //could not get OpenOCD with remote bitbang to work when TDO is delayed..
+        reg_tdo: False,
+        debug: True,
         instrs: vec(
             'h02 //dummy register
         )
@@ -51,8 +53,9 @@ module mkTestOOCD();
     let bus_clk <- mkAbsoluteClock(0, 2);
     let bus_rst <- mkAsyncResetFromCR(2, bus_clk);
 
-    JTAG_TDO_Delay#(2) tdo_delay = ?;
-
+    //for sampling TDO at the correct time, does not work with registered TDO output of the TAP
+    //but since this driver is only for simulation, accept for now
+    JTAG_TDO_Delay#(1) tdo_delay = ?;
     let oocd_driver <- mkJTAG_Driver_OOCD(tdo_delay, clocked_by bus_clk, reset_by bus_rst);
     JTAG_Stim_ifc jtag_stim <- mkJTAGShim(clocked_by bus_clk, reset_by bus_rst);
     
@@ -76,9 +79,8 @@ module mkTestOOCD();
     mkConnection(toGet(tap.tdo),            toPut(jtag_stim.int_tdo));
 
     Stmt s = seq
-        $display("Hello");
-        // delay(500000);
-        await(False);
+        await(oocd_driver.connected());
+        await(!oocd_driver.connected());
     endseq;
 
     mkAutoFSM(s, clocked_by bus_clk, reset_by bus_rst);
