@@ -9,6 +9,7 @@ import "BDPI" function ActionValue#(Int#(32)) c_socket_init(Bit#(32) dummy);
 import "BDPI" function ActionValue#(Int#(32)) c_socket_accept(Int#(32) fd);
 import "BDPI" function ActionValue#(Int#(32)) c_socket_process(Int#(32) fd, Bit#(1) tdo);
 import "BDPI" function ActionValue#(Int#(32)) c_send_tdo(Int#(32) fd, Bit#(1) tdo);
+import "BDPI" function Action c_print_status();
 
 (* always_ready *)
 interface JTAG_Driver_ifc;
@@ -17,6 +18,8 @@ interface JTAG_Driver_ifc;
     method Bit#(1) ext_tms();
     method Bit#(1) ext_tdi();
     method Action ext_tdo(Bit#(1) b);
+
+    method Bool connected();
 endinterface
 
 module mkJTAG_Driver_OOCD#(JTAG_TDO_Delay#(n) _unused)(JTAG_Driver_ifc);
@@ -30,7 +33,8 @@ module mkJTAG_Driver_OOCD#(JTAG_TDO_Delay#(n) _unused)(JTAG_Driver_ifc);
     Reg#(Bool) rg_connected <- mkReg(False);
     Reg#(Int#(32)) rg_sock_fd <- mkRegU;
     Reg#(Int#(32)) rg_data_sock_fd <- mkRegU;
-    // Reg#(Bool) rg_send_tdo <- mkReg(False);
+    Reg#(Bit#(32)) rg_tdo_req_count <- mkReg(0);
+    Reg#(Bit#(32)) rg_tdo_resp_count <- mkReg(0);
 
     //TDO arrives delayed based on the TAP implementation
     Vector#(n, Reg#(Bool)) v_rg_send_tdo <- replicateM(mkReg(False));
@@ -66,16 +70,23 @@ module mkJTAG_Driver_OOCD#(JTAG_TDO_Delay#(n) _unused)(JTAG_Driver_ifc);
             tdi <= pack(cmd)[0];
         end
         if(unpack(pack(cmd)[16])) begin
+            rg_tdo_req_count <= rg_tdo_req_count + 1;
             v_rg_send_tdo[valueof(n)-1] <= True;
         end else 
             v_rg_send_tdo[valueof(n)-1] <= False;
-        //
+    endrule
+
+    rule tdo_propagate;
         for(Integer i = 1; i < valueof(n); i = i + 1)
             v_rg_send_tdo[valueof(n)-1-i] <= v_rg_send_tdo[valueof(n)-i];
     endrule
 
     rule r_send_tdo if(rg_started && rg_connected && v_rg_send_tdo[0]);
         let ret <- c_send_tdo(rg_data_sock_fd, tdo);
+        // if(ret == 0)
+        //     c_print_status();
+        rg_tdo_resp_count <= rg_tdo_resp_count + 1;
+        v_rg_send_tdo[0] <= False;
     endrule
 
     method ext_trst = 1'b0;
@@ -84,6 +95,8 @@ module mkJTAG_Driver_OOCD#(JTAG_TDO_Delay#(n) _unused)(JTAG_Driver_ifc);
     method ext_tdi = tdi;
     method ext_tdo = tdo._write;
     
+    method connected = rg_connected;
+
 endmodule
 
 endpackage

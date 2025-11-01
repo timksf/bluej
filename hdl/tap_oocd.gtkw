@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
-[*] Mon Oct 27 21:28:29 2025
+[*] Tue Oct 28 21:04:14 2025
 [*]
 [dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
-[dumpfile_mtime] "Mon Oct 27 21:24:29 2025"
-[dumpfile_size] 9321568
+[dumpfile_mtime] "Tue Oct 28 21:02:54 2025"
+[dumpfile_size] 40759232
 [savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_oocd.gtkw"
-[timestart] 1397221
-[size] 2560 1393
-[pos] -1 -1
-*-5.767551 1397358 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 3319511
+[size] 2560 1361
+[pos] -51 -51
+*-5.167551 3319803 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] main.
 [treeopen] main.top.
 [treeopen] main.top.jtag_stim.
 [sst_width] 483
-[signals_width] 271
+[signals_width] 310
 [sst_expanded] 1
 [sst_vpaned_height] 445
 @200
@@ -25,8 +25,12 @@ main.top.oocd_driver_tms
 main.top.oocd_driver_tdi
 main.top.oocd_driver_tdo
 main.top.oocd_driver_v_rg_send_tdo_0
-@29
 main.top.oocd_driver_v_rg_send_tdo_1
+@29
+main.top.oocd_driver_v_rg_send_tdo_2
+@24
+main.top.oocd_driver_rg_tdo_req_count[31:0]
+main.top.oocd_driver_rg_tdo_resp_count[31:0]
 @200
 -STIM
 @28
