@@ -109,7 +109,6 @@ module mkTestOOCD();
     endrule
 
     Stmt s = seq
-        // $display("[%0t] ", $time, fshow(JTAG_BusControl#(32,32)'(unpack('h2aaaaaaa934fad707))));
         await(oocd_driver.connected());
         await(!oocd_driver.connected());
     endseq;
