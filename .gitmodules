@@ -1,0 +1,9 @@
+[submodule "hdl/dep/BSVTools"]
+	path = hdl/dep/BSVTools
+	url = https://github.com/timksf/BSVTools.git
+[submodule "hdl/dep/BlueLib"]
+	path = hdl/dep/BlueLib
+	url = https://github.com/timksf/BlueLib.git
+[submodule "hdl/dep/BlueAXI"]
+	path = hdl/dep/BlueAXI
+	url = https://github.com/timksf/BlueAXI.git
