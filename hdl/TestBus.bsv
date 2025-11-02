@@ -14,11 +14,12 @@ import ClockUtil :: *;
 
 `define IR_WIDTH 8
 
-(* synthesize *)
-module mkTAP#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(2));
+interface MyJTAGSystem_ifc;
+    method ActionValue#(Bit#(32)) user_reg0();
+    interface Client#(BusRequest#(32, 32), BusResponse#(32)) bus_client;
+endinterface
 
-    let tck <- exposeCurrentClock;
-    let trst <- exposeCurrentReset;
+module [JTAGSystem#(2, `IR_WIDTH)] myJTAGSystem#(Clock bus_clk, Reset bus_rst)(MyJTAGSystem_ifc);
 
     JTAG_TAP_Config_t#(2, `IR_WIDTH) jtag_config = JTAG_TAP_Config_t {
         idcode_man: 'b00000010111,
@@ -28,29 +29,29 @@ module mkTAP#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(2));
         instrs: vec(
             'h02, //dummy register
             'hDE //bus control register
-        )
+        ),
+        debug: True,
+        instr_idcode: 0,
+        reset_idcode_not_bypass: True //reset to idcode not bypass
     };
-    
-    JTAG_TAP_Controller_ifc#(2) ifc <- mkJTAG_TAP_Controller(
-        jtag_config,
-        0,
-        True,
-        vec(as_read_only()),
-        tdo_clk, tdo_rst,
-        clocked_by tck, reset_by trst);
 
-    return ifc;
+    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hC0DEAFFE);
+    JTAG_BusAdapter_ifc#(32, 32) ifc <- mkJTAG_BusAdapter(bus_clk, bus_rst);
+
+    setTAPConfig(jtag_config);
+    addJTAGReg(reg0);
+    addJTAGReg(ifc.jtag_bus_ctrl);
+
+    method user_reg0 if(reg0.wr_o()) = actionvalue return reg0.reg_o(); endactionvalue;
+
+    interface bus_client = ifc.bus;
+        
 endmodule
 
 (* synthesize *)
-module mkDUT#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(32, 32));
-
-    // let bus_clk <- exposeCurrentClock;
-    // let bus_rst <- exposeCurrentReset;
-
-    JTAG_BusAdapter_ifc#(32, 32) ifc <- mkJTAG_BusAdapter(bus_clk, bus_rst);
-
-    return ifc;
+module mkDUT#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
+    let jtag_sys <- buildJTAGSystem(myJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
+    return jtag_sys;
 endmodule
 
 module mkTestBus();
@@ -71,17 +72,7 @@ module mkTestBus();
     let tck_inv = jtag_stim.tdo_clk;
     let trst_inv = jtag_stim.tdo_rst;
 
-    let tap <- mkTAP(clocked_by tck, reset_by trst);
-    
-    //JTAG registers
-    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hC0DEAFFE, clocked_by tck, reset_by trst);
-    JTAG_BusAdapter_ifc#(32, 32) dut <- mkDUT(bus_clk, bus_rst, clocked_by tck, reset_by trst);
-
-    mkConnection(reg0.tdi, jtag_stim.int_tdi);
-    jtagConnect(tap.tap_ctrl, reg0.ctrl, 0);
-
-    mkConnection(dut.jtag_bus_ctrl.tdi, jtag_stim.int_tdi);
-    jtagConnect(tap.tap_ctrl, dut.jtag_bus_ctrl.ctrl, 1);
+    let dut <- mkDUT(tck_inv, trst_inv, bus_clk, bus_rst, clocked_by tck, reset_by trst);
 
     //connect TAP controller to stimulus
     mkConnection(toGet(wtck),               toPut(jtag_stim.ext_tck));
@@ -90,9 +81,9 @@ module mkTestBus();
     mkConnection(toGet(ext_tms),            toPut(jtag_stim.ext_tms));
     mkConnection(toGet(jtag_stim.ext_tdo),  toPut(asReg(ext_tdo)));
     
-    mkConnection(toGet(jtag_stim.int_tms),  toPut(tap.tms));
-    mkConnection(toGet(jtag_stim.int_tdi),  toPut(tap.tdi));
-    mkConnection(toGet(tap.tdo),            toPut(jtag_stim.int_tdo));
+    mkConnection(toGet(jtag_stim.int_tms),  toPut(dut.tms));
+    mkConnection(toGet(jtag_stim.int_tdi),  toPut(dut.tdi));
+    mkConnection(toGet(dut.tdo),            toPut(jtag_stim.int_tdo));
     
     //testbench counter
     Reg#(Bit#(32)) rCount <- mkRegU(clocked_by bus_clk, reset_by bus_rst);
@@ -108,7 +99,7 @@ module mkTestBus();
     BRAM1Port#(Bit#(32), Bit#(32)) bram <- mkBRAM1Server(bram_cfg, clocked_by bus_clk, reset_by bus_rst);
 
     rule rbus_req;
-        let req <- dut.bus.request.get();
+        let req <- dut.device_ifc.bus_client.request.get();
         $display("[%0t] Got Bus request: ", $time, fshow(req));
         bram.portA.request.put(BRAMRequest {
             write: req.write_not_read,
@@ -120,7 +111,7 @@ module mkTestBus();
 
     rule rbus_resp;
         let resp <- bram.portA.response.get();
-        dut.bus.response.put(BusResponse { data: resp });
+        dut.device_ifc.bus_client.response.put(BusResponse { data: resp });
         $display("[%0t] BRAM response: ", $time, fshow(resp));
     endrule
 
@@ -132,6 +123,7 @@ module mkTestBus();
         delay(10);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'hDE);
         rg_req <= tagged Request BusRequest { write_not_read: False, addr: 'h08, data: ? };
+        // $display("Request: " + fshow(rg_req) + " %0X", rg_req);
         jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut, 1);
         //some idling to let data arrive
         jtag_idle(rCount, wtck, ext_tms, ext_tdi, 4);

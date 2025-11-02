@@ -12,35 +12,38 @@ import ClockUtil :: *;
 
 `define IR_WIDTH 8
 
-(* synthesize *)
-module mkDUT#(Clock tdo_clk, Reset tdo_rst)(JTAG_TAP_Controller_ifc#(1));
+interface MyJTAGSystem_ifc;
+    method ActionValue#(Bit#(32)) myreg_read();
+endinterface
 
-    let tck <- exposeCurrentClock;
-    let trst <- exposeCurrentReset;
+module [JTAGSystem#(1, `IR_WIDTH)] myJTAGSystem(MyJTAGSystem_ifc);
 
-    JTAG_TAP_Config_t#(1, `IR_WIDTH) jtag_config = JTAG_TAP_Config_t {
+    JTAG_TAP_Config_t#(1, `IR_WIDTH) tap_config = JTAG_TAP_Config_t {
         idcode_man: 'b00000010111,
         idcode_part: 'h04,
         idcode_ver: 0,
-        reg_tdo: True, //for easier bluesim setup
-        instrs: vec('h02)
+        reg_tdo: True,
+        instrs: vec('h02),
+        debug: True,
+        instr_idcode: 0, //IDCODE instruction
+        reset_idcode_not_bypass: True //reset to idcode not bypass
     };
-    
-    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hDEADBEEF, clocked_by tck, reset_by trst);
-    JTAG_TAP_Controller_ifc#(1) ifc <- mkJTAG_TAP_Controller(
-        jtag_config,    //tap config
-        0,              //IDCODE instruction
-        True,           //reset to idcode not bypass
-        vec(as_read_only(reg0.tdo)),  //upstream TDOs
-        tdo_clk, tdo_rst,
-        clocked_by tck, reset_by trst
-    );
 
-    //connect custom data register
-    mkConnection(reg0.tdi, ifc.int_tdi);
-    jtagConnect(ifc.tap_ctrl, reg0.ctrl, 0);
+    //we expect this module to be clocked/reset by tck and trst
+    JTAG_Reg_ifc#(Bit#(32)) my_reg <- mkJTAGReg('hDEADBEEF);
 
-    return ifc;
+    setTAPConfig(tap_config);
+    addJTAGReg(my_reg);
+
+    //blocks if no value loaded into register
+    method myreg_read if(my_reg.wr_o()) = actionvalue return my_reg.reg_o(); endactionvalue;
+
+endmodule
+
+(* synthesize *)
+module mkDUT#(Clock tdo_clk, Reset tdo_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
+    let jtag_sys <- buildJTAGSystem(myJTAGSystem, tdo_clk, tdo_rst);
+    return jtag_sys;
 endmodule
 
 module mkTestbench();
@@ -74,6 +77,10 @@ module mkTestbench();
     mkConnection(toGet(jtag_stim.int_tdi),  toPut(dut.tdi));
 
     mkConnection(toGet(dut.tdo),            toPut(jtag_stim.int_tdo));
+
+    rule r;
+        $display("Update user reg: %0x", dut.device_ifc.myreg_read());
+    endrule
 
     Stmt s = {
         seq
