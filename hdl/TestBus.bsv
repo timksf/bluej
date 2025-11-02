@@ -88,8 +88,8 @@ module mkTestBus();
     //testbench counter
     Reg#(Bit#(32)) rCount <- mkRegU(clocked_by bus_clk, reset_by bus_rst);
 
-    Reg#(JTAG_BusControl#(32, 32)) rg_req <- mkRegU(clocked_by bus_clk, reset_by bus_rst);
-    Reg#(Bit#(66)) rOut <- mkReg(0, clocked_by bus_clk, reset_by bus_rst);
+    Reg#(JTAG_BusControl_Simple#(32, 32)) rg_req <- mkRegU(clocked_by bus_clk, reset_by bus_rst);
+    Reg#(Bit#(68)) rOut <- mkReg(0, clocked_by bus_clk, reset_by bus_rst);
 
     //test memory connected to bus ifc
     BRAM_Configure bram_cfg = defaultValue;
@@ -122,13 +122,18 @@ module mkTestBus();
         $display("[%0t] JTAG returned %08X", $time, rOut);
         delay(10);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'hDE);
-        rg_req <= tagged Request BusRequest { write_not_read: False, addr: 'h08, data: ? };
+        action
+            JTAG_BusControl_Simple#(32, 32) rq = defaultValue;
+            rq.write_not_read = False;
+            rq.addr = 'h08;
+            rg_req <= rq;
+        endaction
         $display("Request: %0X ~ ", rg_req, fshow(rg_req));
         jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut, 1);
         //some idling to let data arrive
         jtag_idle(rCount, wtck, ext_tms, ext_tdi, 4);
         jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 0, rOut, 1);
-        $display("[%0t] ", $time, fshow(JTAG_BusControl#(32,32)'(unpack(rOut))));
+        $display("[%0t] ", $time, fshow(JTAG_BusControl_Simple#(32,32)'(unpack(rOut))));
         delay(10);
     endseq;
 
