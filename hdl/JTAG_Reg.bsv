@@ -12,11 +12,12 @@ typedef union tagged {
 
 interface JTAG_Reg_ifc#(type t);
 
+    //device-facing, will be used by whoever instantiates a jtag register
     method t reg_o();
     method Bool wr_o();
-    method Action tdi(Bit#(1) t);
+    
     method Bit#(1) tdo();
-
+    method Action tdi(Bit#(1) t);
     interface JTAG_Ctrl_Dn_ifc ctrl;
 
 endinterface

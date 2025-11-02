@@ -126,8 +126,6 @@ endmodule
 // *)   
 module mkJTAG_TAP_Controller#(
     JTAG_TAP_Config_t#(n, w) tap_cfg,
-    JTAGInstruction_t#(w) instr_idcode,
-    Bool reset_idcode_not_bypass,
     Vector#(n, ReadOnly#(Bit#(1))) vTDO_up,
     Clock tdo_clk,
     Reset tdo_rst
@@ -140,7 +138,7 @@ module mkJTAG_TAP_Controller#(
     //IR has to be reset to IDCODE/BYPASS
     //BYPASS has to be identified at least with all 1's
     JTAGInstruction_t#(w) instr_bypass = unpack(-1);
-    JTAGInstruction_t#(w) ir_rst = reset_idcode_not_bypass ? instr_idcode : instr_bypass;
+    JTAGInstruction_t#(w) ir_rst = tap_cfg.reset_idcode_not_bypass ? tap_cfg.instr_idcode : instr_bypass;
 
     let tap_fsm <- mkJTAG_TAP_FSM();
 
@@ -213,8 +211,13 @@ module mkJTAG_TAP_Controller#(
 
     if(tap_cfg.debug)
         rule rdebug;
-            if(jtagIR.wr_o)
+            if(jtagIR.wr_o) begin
                 $display("TAP: update IR to %0x", jtagIR.reg_o);
+                if(pack(vSelect) != 0)
+                    $display("Selecting data register %0d", pack(vSelect));
+                else
+                    $display("No user register specified for instruction");
+            end
         endrule
 
     method tdo = tap_cfg.reg_tdo ? rg_ext_tdo : int_tdo;
@@ -232,5 +235,15 @@ module mkJTAG_TAP_Controller#(
     endinterface
 
 endmodule
+
+module tapConnect#(JTAG_TAP_Controller_ifc#(n) tap, IJTAG_ifc jtag_target, Integer i)(Empty);
+
+    jtagConnect(tap.tap_ctrl, jtag_target.ctrl, i);
+    mkConnection(tap.int_tdi, jtag_target.tdi);
+
+    //TDO is handled by module parameters because of CDC
+
+endmodule
+
 
 endpackage
