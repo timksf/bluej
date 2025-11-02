@@ -95,5 +95,4 @@ typedef struct {
 
 typedef struct {} JTAG_TDO_Delay#(numeric type n);
 
-
 endpackage
