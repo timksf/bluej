@@ -123,7 +123,7 @@ module mkTestBus();
         delay(10);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'hDE);
         rg_req <= tagged Request BusRequest { write_not_read: False, addr: 'h08, data: ? };
-        // $display("Request: " + fshow(rg_req) + " %0X", rg_req);
+        $display("Request: %0X ~ ", rg_req, fshow(rg_req));
         jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut, 1);
         //some idling to let data arrive
         jtag_idle(rCount, wtck, ext_tms, ext_tdi, 4);
