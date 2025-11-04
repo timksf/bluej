@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
-[*] Sun Nov  2 15:46:37 2025
+[*] Tue Nov  4 18:16:23 2025
 [*]
 [dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
-[dumpfile_mtime] "Sun Nov  2 15:43:52 2025"
-[dumpfile_size] 84466
+[dumpfile_mtime] "Tue Nov  4 18:14:27 2025"
+[dumpfile_size] 92439
 [savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_fsm.gtkw"
-[timestart] 1105
+[timestart] 349
 [size] 2560 1361
 [pos] -51 -51
-*-7.181107 1810 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-5.981107 535 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] main.
 [treeopen] main.top.
 [treeopen] main.top.jtag_stim.
 [sst_width] 366
-[signals_width] 246
+[signals_width] 286
 [sst_expanded] 1
 [sst_vpaned_height] 423
 @24
@@ -34,16 +34,22 @@ main.top.ext_tdo
 main.top.CLK
 @200
 -
+@2023
+^1 /home/tim/Documents/HardwareDescription/bluej/hdl/tap_states.txt
+main.top.dut.jtag_sys_tap_tap_fsm_rState[3:0]
 @22
 main.top.rOut[32:0]
 @24
 main.top.rCount[31:0]
+@22
+main.top.dut.jtag_sys_tap_jtagIR_rSR[7:0]
+main.top.dut.jtag_sys_tap_jtagIR_rHR[7:0]
 @200
 -User Register
 @22
 main.top.dut.jtag_sys_my_reg_i_rHR[31:0]
 main.top.dut.jtag_sys_my_reg_i_rSR[31:0]
-@29
+@28
 main.top.dut.jtag_sys_my_reg_i_rWR
 [pattern_trace] 1
 [pattern_trace] 0

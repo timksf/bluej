@@ -6,7 +6,10 @@ OBJ_BDPI:=$(wildcard bdpi/*.o)
 
 BSC_DIRS+=-bdir build -simdir build/sim
 BSC_FLAGS+=-show-schedule -elab -aggressive-conditions -no-warn-action-shadowing -keep-inlined-boundaries -suppress-warnings G0010
+BSC_FLAGS+=-D "BSV_TIMESCALE=1ps/1ps"
 # -remove-dollar
+
+VINC=rtl:rtl/lib/:rtl/lib/unisim:+
 
 dirs:
 	mkdir -p build
@@ -28,8 +31,8 @@ vcd: $(NAME)_out
 
 $(NAME)_outv: $(NAME).bsv dirs
 	make -C bdpi
-	bsc $(BSC_DIRS) -vdir build/verilog -show-schedule -vsearch rtl:+ -verilog $(BSC_FLAGS) -u -g mk$(MOD) $<
-	bsc $(BSC_DIRS) -vdir build/verilog -vsim iverilog -vsearch rtl:+ -e mk$(MOD) -o $@ $(OBJ_BDPI)
+	bsc $(BSC_DIRS) -vdir build/verilog -show-schedule -vsearch $(VINC) -verilog $(BSC_FLAGS) -u -g mk$(MOD) $<
+	bsc $(BSC_DIRS) -vdir build/verilog -vsim iverilog -vsearch $(VINC) -D "BSV_TIMESCALE=1ps/1ps" -e mk$(MOD) -o $@ $(OBJ_BDPI)
 
 simv: $(NAME)_outv
 	./$(NAME)_outv +bscvcd
