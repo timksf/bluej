@@ -87,6 +87,8 @@ module mkTestbench();
             jtag_reset(rCount, wtck, ext_tms, ext_tdi);
             jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
             delay(10);
+            jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'hFF);
+            jtag_reset(rCount, wtck, ext_tms, ext_tdi);
             //read custom register
             jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h02);
             jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
@@ -106,7 +108,6 @@ module mkTestbench();
     };
 
     mkAutoFSM(s);
-
 
 endmodule
 
