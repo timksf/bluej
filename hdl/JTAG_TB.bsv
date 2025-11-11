@@ -89,6 +89,4 @@ function Stmt jtag_dr_ret(Reg#(Bit#(32)) i, Wire#(Bit#(1)) tck, Wire#(Bit#(1)) t
         Add#(w1, 1, w)
     )
     = jtag_dr_ret_del(i, tck, tms, tdi, tdo, inp, out, 0);
-
-
 endpackage

@@ -20,6 +20,7 @@ module mkTestXilJTAG();
     Wire#(Bit#(1)) ext_tms  <- mkWire;
     Wire#(Bit#(1)) ext_tdo  <- mkBypassWire;
 
+    Reg#(Bit#(32)) rOut <- mkRegU;
     Reg#(Bit#(32)) rCount <- mkRegU;
 
     //handles clocking
@@ -29,7 +30,6 @@ module mkTestXilJTAG();
     let trst = jtag_stim.trst_out;
     let tck_inv = jtag_stim.tdo_clk;
     let trst_inv = jtag_stim.tdo_rst;
-
 
     //xilinx JTAG simulation primitive
     let dut <- mkJTAG_SIME2("xcku3p", clocked_by tck);
@@ -47,9 +47,13 @@ module mkTestXilJTAG();
 
     Stmt s = seq
         $display("Hello");
-        // jtag_reset(rCount, wtck, ext_tms, ext_tdi);
+        jtag_reset(rCount, wtck, ext_tms, ext_tdi);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 6'b111111);
-        // jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
+        jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
+        jtag_ir(rCount, wtck, ext_tms, ext_tdi, 6'b001001);
+        jtag_idle(rCount, wtck, ext_tms, ext_tdi, 1);
+        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
+        delay(20);
     endseq;
 
     mkAutoFSM(s);
