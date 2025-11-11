@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
+[*] Sun Nov  9 16:02:45 2025
+[*]
+[dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
+[dumpfile_mtime] "Sun Nov  9 15:46:05 2025"
+[dumpfile_size] 19748
+[savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_xil.gtkw"
+[timestart] 0
+[size] 2560 1393
+[pos] -1 -1
+*-5.573931 46 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] main.
+[treeopen] main.top.
+[sst_width] 391
+[signals_width] 206
+[sst_expanded] 1
+[sst_vpaned_height] 431
+@28
+main.top.CLK
+main.top.jtag_stim.ext_tck_b
+main.top.jtag_stim.ext_tms_b
+main.top.jtag_stim.ext_tdi_b
+main.top.jtag_stim.\jtag_clk_trst$OUT_RST
+main.top.jtag_stim.CLK_tck_out
+main.top.jtag_stim.int_tms
+main.top.jtag_stim.int_tdi
+main.top.jtag_stim.int_tdo_b
+@200
+-TAP
+@22
+main.top.dut.CurrentState[3:0]
+@820
+main.top.dut.jtag_state_name[112:0]
+@200
+-IR
+@420
+main.top.dut.IRLength
+@28
+main.top.dut.ClkIR_sig
+main.top.dut.TMS
+main.top.dut.TDI
+main.top.dut.IR_CAPTURE_VAL[23:0]
+main.top.dut.NextIRreg[5:0]
+main.top.dut.ir_int[5:0]
+main.top.dut.ClkUpdateIR_sig
+main.top.dut.IRcontent_sig[5:0]
+[pattern_trace] 1
+[pattern_trace] 0
