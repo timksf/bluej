@@ -4,7 +4,7 @@ import DefaultValue :: *;
 
 (* always_enabled *)
 interface BSCANE2_ifc;
-    method Bit#(1) capture;
+    method Bool capture;
     method Bool reset;      //Test-Logic-Reset state
     method Bool runtest;    //Run-Test/Idle state
     method Bool sel;
@@ -16,8 +16,8 @@ interface BSCANE2_ifc;
     
     method Action tdo(Bit#(1) b);
     
-    interface Clock tck;
-    interface Clock drck; //TODO clock correct? ~ gated TCK
+    interface Clock bscan_tck;
+    interface Clock bscan_drck; //TODO clock correct? ~ gated TCK
 endinterface
 
 typedef struct {
@@ -39,25 +39,25 @@ module vMkBSCANE2#(BSCANE2_Config cfg, Clock tck_inv)(BSCANE2_ifc);
     default_reset no_reset;
 
     //this primitive takes TCK from the glbl module and outputs it via its interface
-    output_clock tck (TCK);
-    output_clock drck (DRCK);
+    output_clock bscan_tck (TCK);
+    output_clock bscan_drck (DRCK);
 
     //input
     //the user TDO signals in JTAG_SIME2 are assigned to this input
-    method tdo (TDO) enable((*inhigh*) EN0) clocked_by(tck);
+    method tdo (TDO) enable((*inhigh*) EN0) clocked_by(bscan_tck);
 
     //output
     //these signals come from JTAG_SIME2 via glbl and are clocked by the inverted tck
-    method (* reg *)   CAPTURE  capture()   clocked_by(tck_inv);
-    method (* reg *)   RESET    reset()     clocked_by(tck_inv);
-    method (* reg *)   RUNTEST  runtest()   clocked_by(tck_inv);
-    method (* reg *)   SHIFT    shift()     clocked_by(tck_inv);
-    method (* reg *)   UPDATE   update()    clocked_by(tck_inv);
+    method (* reg *)   CAPTURE  capture()   clocked_by(no_clock);
+    method (* reg *)   RESET    reset()     clocked_by(no_clock);
+    method (* reg *)   RUNTEST  runtest()   clocked_by(no_clock);
+    method (* reg *)   SHIFT    shift()     clocked_by(no_clock);
+    method (* reg *)   UPDATE   update()    clocked_by(no_clock);
 
-    method (* reg *) SEL sel() clocked_by(tck);
+    method (* reg *) SEL sel() clocked_by(no_clock);
 
-    method TMS tms() clocked_by(tck);
-    method TDI tdi() clocked_by(tdi);
+    method TMS tms() clocked_by(no_clock);
+    method TDI tdi() clocked_by(no_clock);
 
     schedule(
         capture,
