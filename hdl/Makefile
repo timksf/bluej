@@ -1,48 +1,74 @@
-NAME=Testbench
-MOD=$(NAME) #only change if top module name is different from file name
+###
+# DO NOT CHANGE
+###
+TOP_MODULE=mkBlueJ
+TESTBENCH_MODULE=mkTestbench
+IGNORE_MODULES=mkTestbench mkTestsMainTest
+MAIN_MODULE=BlueJ
+TESTBENCH_FILE=test/Testbench.bsv
+TEST_DIR=$(CURDIR)/test
 
-SOURCES_BDPI:=$(wildcard bdpi/*.cc)
-OBJ_BDPI:=$(wildcard bdpi/*.o)
+# Initialize
+-include .bsv_tools
+ifndef BSV_TOOLS
+$(error BSV_TOOLS is not set (Check .bsv_tools or specify it through the command line))
+endif
+VIVADO_ADD_PARAMS := ''
+CONSTRAINT_FILES := ''
+EXTRA_BSV_LIBS:=
+EXTRA_LIBRARIES:=
+RUN_FLAGS:=
 
-BSC_DIRS+=-bdir build -simdir build/sim
-BSC_FLAGS+=-show-schedule -elab -aggressive-conditions -no-warn-action-shadowing -keep-inlined-boundaries -suppress-warnings G0010
-BSC_FLAGS+=-D "BSV_TIMESCALE=1ps/1ps"
-BSC_FLAGS+=-D "BSV_ASSIGNMENT_DELAY=\#1"
-# -remove-dollar
+PROJECT_NAME=BlueJ
 
-V_FLAGS+=-D "BSV_ASSIGNMENT_DELAY=\#1" -D "BSV_TIMESCALE=1ps/1ps" 
+ifeq ($(RUN_TEST),)
+RUN_TEST=TestTAP
+endif
 
-VINC=rtl:rtl/lib/:rtl/lib/unisim:+
+# Default flags
+EXTRA_FLAGS=-D "RUN_TEST=$(RUN_TEST)" -D "TESTNAME=mk$(RUN_TEST)"
+EXTRA_FLAGS+=-show-schedule -D "BSV_TIMESCALE=1ps/1ps" -keep-inlined-boundaries -aggressive-conditions
 
-dirs:
-	mkdir -p build
-	mkdir -p build/sim
-	mkdir -p build/verilog
+###
+# User configuration
+###
 
-mk$(NAME).ba: $(NAME).bsv dirs
-	bsc -bdir build $(BSC_FLAGS) -u -sim -g mk$(MOD) $<
+# Comment the following line if -O3 should be used during compilation
+# Keep uncommented for short running simulations
+CXX_NO_OPT := 1
 
-$(NAME)_out: mk$(NAME).ba
-	make -C bdpi
-	bsc $(BSC_DIRS) -show-schedule -u -sim -e mk$(MOD) -o $@ $(OBJ_BDPI)
+# Any additional files added during compilation
+# For instance for BDPI or Verilog/VHDL files for simulation
+# CPP_FILES += $(current_dir)/src/mem_sim.cpp
+C_FILES += $(CURDIR)/src/bdpi/jtag_bdpi.cc
 
-sim: $(NAME)_out
-	./$(NAME)_out 
+# Custom defines added to compile steps
+# EXTRA_FLAGS+=-D "BENCHMARK=1"
 
-vcd: $(NAME)_out
-	./$(NAME)_out -V dump.vcd
+# Flags added to simulator execution
+ifeq ($(SIM_TYPE), VERILOG)
+# RUN_FLAGS+=+bscvcd
+EXTRA_FLAGS+=-D "BSV_ASSIGNMENT_DELAY=\#1"
+else
+# RUN_FLAGS+=-V dump.vcd
+endif
 
-$(NAME)_outv: $(NAME).bsv dirs
-	make -C bdpi
-	bsc $(BSC_DIRS) -vdir build/verilog -show-schedule -vsearch $(VINC) -verilog $(BSC_FLAGS) -u -g mk$(MOD) $<
-	bsc $(BSC_DIRS) -vdir build/verilog -vsim iverilog -vsearch $(VINC) $(V_FLAGS) -e mk$(MOD) -o $@ $(OBJ_BDPI)
+# Add additional parameters for IP-XACT generation. Passed directly to Vivado.
+# Any valid TCL during packaging is allowed
+# Typically used to fix automatic inference for e.g. clock assignments
+# VIVADO_ADD_PARAMS += 'ipx::associate_bus_interfaces -busif M_AXI -clock sconfig_axi_aclk [ipx::current_core]'
 
-simv: $(NAME)_outv
-	./$(NAME)_outv +bscvcd
+# Add custom constraint files, Syntax: Filename,Load Order
+# CONSTRAINT_FILES += "$(CURDIR)/constraints/custom.xdc,LATE"
 
-clean: 
-	make -C bdpi clean
-	rm -rf build build/sim
-	rm -rf obj_dir*/
-	rm -f *_outv *_out
-	rm -f *.ba *.bo *.o *.so *.cxx *.h $(NAME)_out $(NAME)_outv *.sched
+VERILOG_SIM:=iverilog
+VERILOG_INC:=$(CURDIR)/src/rtl/lib:$(CURDIR)/src/rtl/lib/unisim
+
+
+# Do not change: Load libraries such as BlueAXI or BlueLib
+ifneq ("$(wildcard $(CURDIR)/libraries/*/*.mk)", "")
+include $(CURDIR)/libraries/*/*.mk
+endif
+
+# Do not change: Include base makefile
+include $(BSV_TOOLS)/scripts/rules.mk

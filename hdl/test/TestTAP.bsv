@@ -1,4 +1,4 @@
-package Testbench;
+package TestTAP;
 
 import GetPut :: *;
 import Vector :: *;
@@ -6,6 +6,8 @@ import Clocks :: *;
 import StmtFSM :: *;
 import BuildVector :: *;
 import Connectable :: *;
+
+import TestHelper :: *;
 
 import BlueJ :: *;
 import ClockUtil :: *;
@@ -46,7 +48,8 @@ module mkDUT#(Clock tdo_clk, Reset tdo_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
     return jtag_sys;
 endmodule
 
-module mkTestbench();
+(* synthesize *)
+module [Module] mkTestTAP(TestHandler);
 
     Wire#(Bit#(1)) wtck     <- mkWire;
     Wire#(Bit#(1)) wtrst    <- mkWire;
@@ -107,7 +110,9 @@ module mkTestbench();
         endseq
     };
 
-    mkAutoFSM(s);
+    FSM f <- mkFSM(s);
+    method go = f.start;
+    method done = f.done;
 
 endmodule
 
