@@ -9,6 +9,8 @@ import ClientServer :: *;
 import BuildVector :: *;
 import Connectable :: *;
 
+import TestHelper :: *;
+
 import BlueJ :: *;
 import ClockUtil :: *;
 
@@ -55,7 +57,8 @@ module mkTAP#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSy
     return jtag_sys;
 endmodule
 
-module mkTestOOCD();
+(* synthesize *)
+module [Module] mkTestOOCD(TestHandler);
 
     let bus_clk <- mkAbsoluteClock(0, 2);
     let bus_rst <- mkAsyncResetFromCR(2, bus_clk);
@@ -76,9 +79,14 @@ module mkTestOOCD();
     //test memory connected to bus ifc
     BRAM_Configure bram_cfg = defaultValue;
     bram_cfg.memorySize = 32;
-    bram_cfg.loadFormat = tagged Hex "test_data.txt";
+    bram_cfg.loadFormat = tagged Hex "../test/test_data.txt";
 
     BRAM1Port#(Bit#(32), Bit#(32)) bram <- mkBRAM1Server(bram_cfg, clocked_by bus_clk, reset_by bus_rst);
+
+    //synchronization of FSM start and stop
+    SyncPulseIfc        pStart          <- mkSyncPulseFromCC(bus_clk);
+    SyncPulseIfc        pStopped        <- mkSyncPulseToCC(bus_clk, bus_rst);
+    SyncBitIfc#(Bool)   syncStarted     <- mkSyncBitToCC(bus_clk, bus_rst);
 
     //connect TAP to driver
     mkConnection(toGet(oocd_driver.ext_tck),    toPut(jtag_stim.ext_tck));
@@ -109,11 +117,23 @@ module mkTestOOCD();
     endrule
 
     Stmt s = seq
+        syncStarted.send(True);
         await(oocd_driver.connected());
         await(!oocd_driver.connected());
     endseq;
 
-    mkAutoFSM(s, clocked_by bus_clk, reset_by bus_rst);
+    FSM f <- mkFSM(s, clocked_by bus_clk, reset_by bus_rst);
+
+    rule start if(pStart.pulse());
+        f.start();
+    endrule
+
+    rule stopped if(f.done());
+        pStopped.send();
+    endrule
+
+    method go = pStart.send;
+    method done = pStopped.pulse && syncStarted.read;
 
 endmodule
 

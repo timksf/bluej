@@ -103,7 +103,7 @@ module [Module] mkTestBus(TestHandler);
 
     //synchronization of FSM start and stop
     SyncPulseIfc        pStart          <- mkSyncPulseFromCC(bus_clk);
-    SyncBitIfc#(Bool)   syncStopped     <- mkSyncBitToCC(bus_clk, bus_rst);
+    SyncPulseIfc        pStopped        <- mkSyncPulseToCC(bus_clk, bus_rst);
     SyncBitIfc#(Bool)   syncStarted     <- mkSyncBitToCC(bus_clk, bus_rst);
 
 
@@ -125,6 +125,7 @@ module [Module] mkTestBus(TestHandler);
     endrule
 
     Stmt s = seq
+        syncStarted.send(True);
         jtag_reset(rCount, wtck, ext_tms, ext_tdi);
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h02);
         jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
@@ -153,11 +154,11 @@ module [Module] mkTestBus(TestHandler);
     endrule
 
     rule stopped if(f.done());
-        syncStopped.send(True);
+        pStopped.send();
     endrule
 
     method go = pStart.send;
-    method done = syncStopped.read && syncStarted.read;
+    method done = pStopped.pulse && syncStarted.read;
 
 endmodule
 
