@@ -147,7 +147,9 @@ module mkJTAGShim(JTAG_Stim_ifc);
 
     let jtag_clk <- mkJTAGClockAdapter(1);
 
-    CrossingReg#(Bit#(1)) tms_in  <- mkNullCrossingReg(jtag_clk.tck_out, 0);
+    // CrossingReg#(Bit#(1)) tms_in  <- mkNullCrossingReg(jtag_clk.tck_out, 0);
+    Reg#(Bit#(1)) tms_in <- mkReg(0);
+    let tms_int <- mkNullCrossingWire(jtag_clk.tck_out, tms_in);
     CrossingReg#(Bit#(1)) tdi_in  <- mkNullCrossingReg(jtag_clk.tck_out, 0);
     CrossingReg#(Bit#(1)) tdo_out <- mkNullCrossingReg(clk, 0, clocked_by jtag_clk.tdo_clk, reset_by jtag_clk.tdo_rst);
 
@@ -158,7 +160,7 @@ module mkJTAGShim(JTAG_Stim_ifc);
     method ext_tdo = tdo_out.crossed;
 
     method int_tdi = tdi_in.crossed;
-    method int_tms = tms_in.crossed;
+    method int_tms = tms_int; //tms_in.crossed;
     method int_tdo = tdo_out._write;
 
     interface tck_out = jtag_clk.tck_out;

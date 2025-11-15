@@ -89,4 +89,17 @@ function Stmt jtag_dr_ret(Reg#(Bit#(32)) i, Wire#(Bit#(1)) tck, Wire#(Bit#(1)) t
         Add#(w1, 1, w)
     )
     = jtag_dr_ret_del(i, tck, tms, tdi, tdo, inp, out, 0);
+
+function Stmt jtag_dr(Reg#(Bit#(32)) i, Wire#(Bit#(1)) tck, Wire#(Bit#(1)) tms, Wire#(Bit#(1)) tdi, Wire#(Bit#(1)) tdo, Bit#(w) inp)
+    provisos(
+        Add#(w1, 1, w)
+    );
+    Bit#(w1) z = 0;
+    Bit#(TAdd#(w, 6)) tms_v = {4'b100, z, 3'b110};
+    Bit#(TAdd#(w, 6)) tdi_v = {4'b000, reverseBits(inp), 2'b00};
+    return par
+        jtag_sequence(i, tck, tms, tdi, tms_v, tdi_v);
+    endpar;
+endfunction
+
 endpackage
