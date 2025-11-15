@@ -21,6 +21,8 @@ RUN_FLAGS:=
 
 PROJECT_NAME=BlueJ
 
+WAVES?=0
+
 ifeq ($(RUN_TEST),)
 RUN_TEST=TestTAP
 endif
@@ -47,10 +49,16 @@ C_FILES += $(CURDIR)/src/bdpi/jtag_bdpi.cc
 
 # Flags added to simulator execution
 ifeq ($(SIM_TYPE), VERILOG)
-# RUN_FLAGS+=+bscvcd
+
+ifeq ($(WAVES), 1)
+	RUN_FLAGS+=+bscvcd
+endif
+
 EXTRA_FLAGS+=-D "BSV_ASSIGNMENT_DELAY=\#1"
 else
-# RUN_FLAGS+=-V dump.vcd
+ifeq ($(WAVES), 1)
+	RUN_FLAGS+=-V dump.vcd
+endif
 endif
 
 # Add additional parameters for IP-XACT generation. Passed directly to Vivado.
