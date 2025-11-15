@@ -62,8 +62,8 @@ endinterface
 */
 module mkJTAG_BusAdapter#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(aw, dw));
 
-    SyncFIFOIfc#(BusRequest#(aw, dw)) f_sync_req <- mkSyncFIFOFromCC(2, bus_clk);
-    SyncFIFOIfc#(BusResponse#(dw)) f_sync_resp <- mkSyncFIFOToCC(2, bus_clk, bus_rst);
+    SyncFIFOIfc#(BusRequest#(aw, dw))   f_sync_req  <- mkSyncFIFOFromCC(2, bus_clk);
+    SyncFIFOIfc#(BusResponse#(dw))      f_sync_resp <- mkSyncFIFOToCC(2, bus_clk, bus_rst);
 
     Reg#(JTAG_BusControl_Simple#(aw, dw)) jrg_ctrl_i <- mkRegU;
 
