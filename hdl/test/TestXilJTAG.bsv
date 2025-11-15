@@ -6,6 +6,8 @@ import GetPut :: *;
 import BuildVector :: *;
 import Clocks :: *;
 
+import TestHelper :: *;
+
 import BlueJ :: *;
 import ClockUtil :: *;
 import GLBL :: *;
@@ -13,7 +15,8 @@ import BSCANE2 :: *;
 import JTAG_SIME2 :: *;
 import JTAG_Xilinx :: *;
 
-module mkTestXilJTAG();
+(* synthesize *)
+module [Module] mkTestXilJTAG(TestHandler);
 
     //required for simulation of Xilinx IP (this handles driving BSCANE2)
     let glbl <- vMkGLBL;
@@ -74,11 +77,12 @@ module mkTestXilJTAG();
         jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
         $display("USER: %0x", rOut);
 
-
         delay(20);
     endseq;
 
-    mkAutoFSM(s);
+    FSM f <- mkFSM(s);
+    method go = f.start;
+    method done = f.done;
 
 endmodule
 

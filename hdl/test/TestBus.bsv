@@ -9,6 +9,8 @@ import ClientServer :: *;
 import BuildVector :: *;
 import Connectable :: *;
 
+import TestHelper :: *;
+
 import BlueJ :: *;
 import ClockUtil :: *;
 
@@ -54,7 +56,8 @@ module mkDUT#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSy
     return jtag_sys;
 endmodule
 
-module mkTestBus();
+(* synthesize *)
+module [Module] mkTestBus(TestHandler);
 
     let bus_clk <- mkAbsoluteClock(0, 2);
     let bus_rst <- mkAsyncResetFromCR(2, bus_clk);
@@ -98,6 +101,12 @@ module mkTestBus();
 
     BRAM1Port#(Bit#(32), Bit#(32)) bram <- mkBRAM1Server(bram_cfg, clocked_by bus_clk, reset_by bus_rst);
 
+    //synchronization of FSM start and stop
+    SyncPulseIfc        pStart          <- mkSyncPulseFromCC(bus_clk);
+    SyncBitIfc#(Bool)   syncStopped     <- mkSyncBitToCC(bus_clk, bus_rst);
+    SyncBitIfc#(Bool)   syncStarted     <- mkSyncBitToCC(bus_clk, bus_rst);
+
+
     rule rbus_req;
         let req <- dut.device_ifc.bus_client.request.get();
         $display("[%0t] Got Bus request: ", $time, fshow(req));
@@ -137,7 +146,18 @@ module mkTestBus();
         delay(10);
     endseq;
 
-    mkAutoFSM(s, clocked_by bus_clk, reset_by bus_rst);
+    FSM f <- mkFSM(s, clocked_by bus_clk, reset_by bus_rst);
+
+    rule start if(pStart.pulse());
+        f.start();
+    endrule
+
+    rule stopped if(f.done());
+        syncStopped.send(True);
+    endrule
+
+    method go = pStart.send;
+    method done = syncStopped.read && syncStarted.read;
 
 endmodule
 
