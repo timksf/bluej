@@ -30,7 +30,7 @@ instance DefaultValue#(BSCANE2_Config);
 endinstance
 
 import "BVI" BSCANE2 = 
-module vMkBSCANE2#(BSCANE2_Config cfg, Clock tck_inv)(BSCANE2_ifc);
+module vMkBSCANE2#(BSCANE2_Config cfg)(BSCANE2_ifc);
 
     parameter DISABLE_JTAG    = cfg.p_DISABLE_JTAG;
     parameter JTAG_CHAIN      = cfg.p_JTAG_CHAIN;
@@ -83,9 +83,9 @@ module vMkBSCANE2#(BSCANE2_Config cfg, Clock tck_inv)(BSCANE2_ifc);
 
 endmodule
     
-module mkBSCANE2#(BSCANE2_Config cfg, Clock tck_inv)(BSCANE2_ifc);
+module mkBSCANE2#(BSCANE2_Config cfg)(BSCANE2_ifc);
     (* hide *)
-    let _int <- vMkBSCANE2(cfg, tck_inv);
+    let _int <- vMkBSCANE2(cfg);
     return _int;
 endmodule
         
