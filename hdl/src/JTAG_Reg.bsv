@@ -114,4 +114,10 @@ module mkJTAGBypass(JTAG_Reg_ifc#(Bit#(1)));
     endinterface
 endmodule
 
+function ReadOnly#(t) jreg_to_read_only(JTAG_Reg_ifc#(t) jreg);
+    return interface ReadOnly;
+        method _read if(jreg.wr_o()) = jreg.reg_o;
+    endinterface;
+endfunction
+
 endpackage

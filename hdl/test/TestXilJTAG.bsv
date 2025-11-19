@@ -45,7 +45,7 @@ module [Module] mkTestXilJTAG(TestHandler);
     let jtag_sime2 <- mkJTAG_SIME2("xcku3p", clocked_by tck);
     
     let bscan_cfg = BSCANE2_Config { p_DISABLE_JTAG: False, p_JTAG_CHAIN: 3 };
-    let bscane2 <- mkBSCANE2_BlueJ(bscan_cfg, tck_inv, vec(as_read_only(user_reg.tdo)), clocked_by tck);
+    let bscane2 <- mkBSCANE2_BlueJ_(bscan_cfg, tck_inv, vec(as_read_only(user_reg.tdo)), clocked_by tck);
 
     mkConnection(toGet(wtck),               toPut(jtag_stim.ext_tck));
     mkConnection(toGet(wtrst),              toPut(jtag_stim.ext_trst));
