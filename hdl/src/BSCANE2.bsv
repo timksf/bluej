@@ -32,7 +32,7 @@ endinstance
 import "BVI" BSCANE2 = 
 module vMkBSCANE2#(BSCANE2_Config cfg)(BSCANE2_ifc);
 
-    parameter DISABLE_JTAG    = cfg.p_DISABLE_JTAG;
+    parameter DISABLE_JTAG    = cfg.p_DISABLE_JTAG ? "True" : "False";
     parameter JTAG_CHAIN      = cfg.p_JTAG_CHAIN;
 
     default_clock no_clock;
