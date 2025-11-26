@@ -75,11 +75,15 @@ module [Module] mkTestFPGATop(TestHandler);
 
         //scan LED control into jtag register
         jtag_ir(rCount, wtck, ext_tms, ext_tdi, c_INSTR_USER3);
-        jtag_dr(rCount, wtck, ext_tms, ext_tdi, ext_tdo, (Bit#(24)'('h001000 << 8 | 1)));
+        jtag_dr(rCount, wtck, ext_tms, ext_tdi, ext_tdo, (Bit#(36)'('hF << 4 | 1)));
 
         //some idle cycles to let the jtag reg sync...
         jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
 
+        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
+        $display("USER3: %0x", rOut);
+
+        delay(100);
     endseq;
 
     FSM f <- mkFSM(s, clocked_by sys_clk, reset_by sys_rst);
