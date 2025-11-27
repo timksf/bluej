@@ -1,0 +1,50 @@
+[*]
+[*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
+[*] Fri Nov 21 22:29:24 2025
+[*]
+[dumpfile] "(null)"
+[savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/test/gtkw/test_fpga_top.gtkw"
+[timestart] 9944
+[size] 2560 1393
+[pos] -1 -1
+*-8.700000 11795 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] main.
+[treeopen] main.top.
+[treeopen] main.top.testVec_0.
+[treeopen] main.top.testVec_0.dut.
+[treeopen] main.top.testVec_0.dut.jtag_led_ctrl_i_rg_sync_o.
+[sst_width] 393
+[signals_width] 302
+[sst_expanded] 1
+[sst_vpaned_height] 719
+@28
+main.top.testVec_0.pStart.sSyncReg
+@22
+main.top.testVec_0.rCount[31:0]
+@820
+main.top.testVec_0.jtag_sime2.jtag_state_name[112:0]
+@28
+main.top.WILL_FIRE_RL_action_l25c26
+@22
+main.top.testVec_0.f_state_mkFSMstate[4:0]
+@28
+main.top.testVec_0.\sys_clk$CLK_OUT
+main.top.testVec_0.\sys_rst$OUT_RST
+@200
+-BSCAN JTAG
+@28
+main.top.testVec_0.dut.bscane2.TCK
+main.top.testVec_0.dut.bscane2.TMS
+main.top.testVec_0.dut.bscane2.TDI
+main.top.testVec_0.dut.bscane2.TDO
+@22
+main.top.testVec_0.dut.jtag_led_ctrl_i_jreg_int_rSR[23:0]
+main.top.testVec_0.dut.jtag_led_ctrl_i_jreg_int_rHR[23:0]
+main.top.testVec_0.dut.jtag_led_ctrl_i_rg_sync_o.dD_OUT[24:0]
+main.top.testVec_0.dut.rg_led_ctrl[23:0]
+@28
+main.top.testVec_0.dut.rg_leds[7:0]
+@24
+main.top.testVec_0.dut.rg_div[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
