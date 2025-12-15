@@ -72,11 +72,16 @@ endif
 VERILOG_SIM:=iverilog
 VERILOG_INC:=$(CURDIR)/src/rtl/lib:$(CURDIR)/src/rtl/lib/unisim
 
+# custom TCL flow
+PART=xcku3p-ffvb676-2-e
+CONSTRAINTS=$(CURDIR)/src/bluej_simple.xdc
+SCRIPT=$(CURDIR)/src/synth.tcl
 
 # Do not change: Load libraries such as BlueAXI or BlueLib
 ifneq ("$(wildcard $(CURDIR)/libraries/*/*.mk)", "")
 include $(CURDIR)/libraries/*/*.mk
 endif
+
 
 # Do not change: Include base makefile
 include $(BSV_TOOLS)/scripts/rules.mk
