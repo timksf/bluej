@@ -28,4 +28,4 @@ report_drc -file $project_dir/${project_name}_drc3.rpt
 
 write_checkpoint $project_dir/${project_name}_chkpt.dcp -force
 
-write_bitstream -file 
+write_bitstream -file $project_dir/${project_name}_out.bit
