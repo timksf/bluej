@@ -25,6 +25,7 @@ puts "Finished phys_opt_design"
 report_timing_summary -file $project_dir/${project_name}_tim3.rpt
 report_utilization -file $project_dir/${project_name}_util3.rpt
 report_drc -file $project_dir/${project_name}_drc3.rpt
+report_methodology -file $project_dir/${project_name}_method3.rpt
 
 write_checkpoint $project_dir/${project_name}_chkpt.dcp -force
 
