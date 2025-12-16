@@ -44,7 +44,7 @@ module [Module] mkTestFPGATop(TestHandler);
     //this will magically drive the BSCAN in the DUT
     let jtag_sime2 <- mkJTAG_SIME2("xcku3p", clocked_by tck);
 
-    let dut <- mkFPGATestSimpleTop(clocked_by sys_clk, reset_by sys_rst);
+    let dut <- mkFPGATestSimple(clocked_by sys_clk, reset_by sys_rst);
 
     //synchronization of FSM start and stop
     SyncPulseIfc        pStart          <- mkSyncPulseFromCC(sys_clk);

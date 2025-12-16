@@ -4,6 +4,7 @@ import BRAM :: *;
 import Clocks :: *;
 
 import BlueJ :: *;
+import BlueXLNX :: *;
 
 `define N_LEDS 4
 
@@ -21,7 +22,13 @@ typedef struct {
 } JTAG_LED_Ctrl#(numeric type n, numeric type w) deriving (Eq, Bits, FShow);
 
 (* synthesize *)
-module mkFPGATestSimpleTop(FPGATest_ifc);
+(* no_default_clock *)
+module mkFPGATestSimpleTop#(Clock clk_p, Clock clk_n)(FPGATest_ifc);
+    let inst <- wrap_diff_clk(mkFPGATestSimple, clk_p, clk_n);
+    return inst;
+endmodule
+
+module mkFPGATestSimple(FPGATest_ifc);
     /*
         Instantiates BSCANE2, connects JTAG bus adapter to configurable user register slot
         and provides access to some 2 ported BRAM.
