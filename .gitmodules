@@ -7,3 +7,6 @@
 [submodule "hdl/dep/BlueAXI"]
 	path = dep/BlueAXI
 	url = https://github.com/timksf/BlueAXI.git
+[submodule "dep/bluexlnx"]
+	path = dep/bluexlnx
+	url = https://github.com/timksf/bluexlnx.git

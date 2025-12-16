@@ -15,7 +15,7 @@ $(error BSV_TOOLS is not set (Check .bsv_tools or specify it through the command
 endif
 VIVADO_ADD_PARAMS := ''
 CONSTRAINT_FILES := ''
-EXTRA_BSV_LIBS:=
+EXTRA_BSV_LIBS:=../dep/bluexlnx/src
 EXTRA_LIBRARIES:=
 RUN_FLAGS:=
 
