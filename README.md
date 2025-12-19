@@ -1,10 +1,23 @@
 <!-- <img src="assets/riscv_debug.drawio.png" width=500> -->
 
+## Examples
+
+The file `hdl/src/FPGATop.bsv` contains a few designs that demonstrate the use of some custom JTAG modules on a Xilinx FPGA.
+
+#### `mkFPGATestSimplest`
+Exposes 32 bit constant register via BSCANE2 user 3 and blinks LEDs with some constant divider.
+
+#### `mkFPGATestSimple`
+Has JTAG configurable LEDs. The control register with a 32 bit divider and a configurable amount of LED enables is exposed via user register 3 on a BSCANE2 instance.
+
+#### `mkFPGATestBusTop`
+TODO
+
 ## Modules
 
 ### `mkJTAG_TAP_FSM`
 Implementation of IEEE1149.1 TAP controller FSM.
-Has a single input:
+Has a single input alongside the bluespec default clock and reset:
 ```VHDL
 method Action tms((*port="TMS"*) Bit#(1) t);
 ```
@@ -42,7 +55,7 @@ Vector#(n, ReadOnly#(Bit#(1))) vTDO_up
 ```
 The instruction codes supplied in the TAP configuration get mapped to these interfaces. 
 
-The general structure of the TAP controller is show in the following image:
+The general structure of the TAP controller is shown in the following image:
 
 <img src="assets/jtag_system.png" width=500>
 
@@ -186,7 +199,9 @@ Now, `mkCustomJTAGSystem` provides the JTAG system interface and only has to be 
 
 ### OpenOCD simulation `TestOOCD`
 
-OpenOCD output with the demo configuration file:
+In `TestOOCD.bsv` the above JTAG system is built and connected to an OpenOCD simulation driver that creates a linux socket for OpenOCD to connect to. OpenOCD can then be used with the remote bitbang driver to connect to the simulation and issue JTAG commands. The OpenOCD configuration file is located here: `hdl/test/bluej.cfg`
+
+OpenOCD output:
 ```bash
 Open On-Chip Debugger 0.12.0+dev-ge09bb72da (2025-10-28-11:16)
 Licensed under GNU GPL v2
@@ -202,6 +217,36 @@ Info : Listening on port 6666 for tcl connections
 Info : Listening on port 4444 for telnet connections
 Info : accepting 'telnet' connection on tcp/4444
 ```
+The helper function `bluej_bus_read32` can be used to interact with the JTAG bus adapter associated with the JTAG instruction `hDE`. This tcl function takes care of placing the address and control bits at the right position in the bitfield that will be written to the JTAG shift register by OpenOCD:
+```tcl
+proc bluej_bus_read32 {addr} {
+    irscan bluej.tap 0xde
+    runtest 1
+    # mask addr to 32 bits and place into bits [63:32]
+    set a [expr {$addr & 0xffffffff}]
+    set request [expr {$a << 32}] ;# control bits = 0, data = 0
+
+    # send the 68-bit DR request
+    drscan bluej.tap 68 $request
+    runtest 10 ;#for now, arbitrary delay, depends on bus clock relation to tck
+    set response [drscan bluej.tap 68 0]
+    set response [hex2dec $response]
+
+    if {[expr {($response >> 65) & 1}]} { 
+        # echo [format "Received valid response"]
+    }
+
+    # check error (bit 66)
+    # if {[expr {($response >> 66) & 1}]} {
+    #     error "JTAG bus read: error bit set"
+    # }
+
+    #extract data from bits [31:0]
+    set data [expr {$response & 0xffffffff}]
+    return $data
+}
+```
+Example where the BRAM connected to the bus adapter was preloaded with `0x34FAD707` at `0x8`:
 ```bash
 Connected to localhost.
 Escape character is '^]'.

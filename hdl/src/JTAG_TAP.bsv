@@ -195,11 +195,11 @@ module mkJTAG_TAP_Controller#(
     if(tap_cfg.debug)
         rule rdebug;
             if(jtagIR.wr_o) begin
-                $display("TAP: update IR to %0x", jtagIR.reg_o);
+                $display("[%0t][TAP] update IR to %0x", $time, jtagIR.reg_o);
                 if(pack(vSelect) != 0)
-                    $display("Selecting data register %0d", pack(vSelect));
+                    $display("[%0t][TAP] Selecting data register %0d", $time, pack(vSelect));
                 else
-                    $display("No user register specified for instruction");
+                    $display("[%0t][TAP] No user register specified for instruction", $time);
             end
         endrule
 
