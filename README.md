@@ -1,5 +1,38 @@
 <!-- <img src="assets/riscv_debug.drawio.png" width=500> -->
 
+## 
+
+- [x] TAP FSM
+- [ ] TAP with variable amount of user registers
+    - [x] TAP implementation with FSM and IR, BYPASS, IDCODE register and TDO mux
+    - [x] simple testbench
+    - [ ] self testing testbench
+- [x] JTAG register with shift and hold register
+- [x] JTAG sync register from TCK to faster system clock
+    - [ ] investigate clock crossing:
+        vivado complains about single destination register but bluespec crossing module uses handshaking with multiple destination registers in a CDC control path
+- [x] JTAG bus adapter with CDC (proof-of-concept)
+- [x] JTAG system builder using bluespec contexts
+- [x] JTAG tesbench drivers
+    - [x] Clock adapters for correct bluesim simulation
+        - [x] TCK driven from a wire 
+        - [x] TDO updates at falling TCK
+    - [x] StmtFSM functions for driving JTAG wires
+- [ ] JTAG Xilinx
+    - [x] BSCANE2 primitive integration with custom JTAG registers
+    - [ ] BSCANE2 tunneling
+        - [ ] BSCANE2 to JTAG conversion like https://github.com/eugene-tarassov/vivado-risc-v/blob/master/vhdl-wrapper/src/net/largest/riscv/vhdl/bscan2jtag.vhdl
+        - [ ] BSCANE2 tunneling compliant with OpenOCD
+- [ ] OpenOCD testing
+    - [x] OpenOCD bluesim simulation
+    - [ ] OpenOCD verilog simulation
+- [ ] FPGA testing
+    - [x] test simple JTAG register connected to BSCANE2
+    - [x] test JTAG register with CDC connected to BSCANE2
+    - [ ] test JTAG bus adapter with CDC connected to BSCANE2
+
+## Running
+
 ## Examples
 
 The file `hdl/src/FPGATop.bsv` contains a few designs that demonstrate the use of some custom JTAG modules on a Xilinx FPGA.
