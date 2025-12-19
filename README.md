@@ -1,4 +1,9 @@
 <!-- <img src="assets/riscv_debug.drawio.png" width=500> -->
+##
+
+Goal: provide low-effort access to design components through a standardized interface.
+
+While there are many other approaches that can also use JTAG, the main intention is to use OpenOCD tcl scripting.
 
 ## 
 
@@ -26,6 +31,8 @@
 - [ ] OpenOCD testing
     - [x] OpenOCD bluesim simulation
     - [ ] OpenOCD verilog simulation
+    - [x] OpenOCD FPGA test with BSCANE2
+    - [ ] OpenOCD FPGA test of the custom TAP exposed on external device pins
 - [ ] FPGA testing
     - [x] test simple JTAG register connected to BSCANE2
     - [x] test JTAG register with CDC connected to BSCANE2
