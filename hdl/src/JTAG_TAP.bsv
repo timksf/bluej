@@ -128,7 +128,7 @@ module mkJTAG_TAP_Controller#(
     //IR register is required to hold 0b01 at [1:0] after capture
     JTAG_Reg_ifc#(Bit#(w))  jtagIR      <- mkJTAGRegR('h01, tagged WithReset ir_rst);
     JTAG_Reg_ifc#(Bit#(1))  jtagBypass  <- mkJTAGBypass();
-    JTAG_Reg_ifc#(Bit#(32)) jtagIDCode  <- mkJTAGReg({tap_cfg.idcode_man, tap_cfg.idcode_part, tap_cfg.idcode_ver, 1'b1}); //idcode is required to have a 1 as LSB
+    JTAG_Reg_ifc#(Bit#(32)) jtagIDCode  <- mkJTAGReg({tap_cfg.idcode_ver, tap_cfg.idcode_part, tap_cfg.idcode_man, 1'b1}); //idcode is required to have a 1 as LSB
 
     Wire#(Bit#(1)) bwTDI <- mkBypassWire;
 
