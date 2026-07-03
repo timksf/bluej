@@ -8,23 +8,18 @@ import JTAG_Types :: *;
 import JTAG_Reg :: *;
 
 module mkJTAG_Reg_Sync#(t reg_i, Clock sysclk, Reset sysrst)(JTAG_Reg_ifc#(t))
-    provisos(
-        Bits#(t, w),
-        Add#(1, __b, w)
-    );
-    
+    provisos(Bits#(t, w));
+
     let i <- mkJTAG_Reg_SyncR(reg_i, tagged NoReset, sysclk, sysrst);
     return i;
+
 endmodule
 
 typedef Tuple2#(t, Bool) JRgSync_t#(type t);
 
 //.. clocked_by tck, reset_by trst
-module mkJTAG_Reg_SyncR#(t reg_i, JTAG_Reg_Reset#(t) r, Clock sysclk, Reset sysrst)(JTAG_Reg_ifc#(t)) 
-    provisos(
-        Bits#(t, w),
-        Add#(1, __b, w)
-    );
+module mkJTAG_Reg_SyncR#(t reg_i, JTAG_Reg_Reset#(t) r, Clock sysclk, Reset sysrst)(JTAG_Reg_ifc#(t))
+    provisos(Bits#(t, w));
 
     //only synchronize when wr_o changes
     Reg#(Bool)          rg_wr_o_old     <- mkReg(False);
@@ -62,13 +57,13 @@ module mkJTAG_Reg_SyncR#(t reg_i, JTAG_Reg_Reset#(t) r, Clock sysclk, Reset sysr
         rg_sync_i <= reg_i;
     endrule
 
-    method reg_o    = rg_d_out;
-    method wr_o     = rg_wr_o_out;
+    method reg_o = rg_d_out;
+    method wr_o  = rg_wr_o_out;
 
-    method tdo      = jreg_int.tdo;
-    method tdi      = jreg_int.tdi;
+    method tdo   = jreg_int.tdo;
+    method tdi   = jreg_int.tdi;
 
-    interface ctrl  = jreg_int.ctrl;
+    interface ctrl = jreg_int.ctrl;
 
 endmodule
 

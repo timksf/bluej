@@ -14,6 +14,7 @@ import GLBL :: *;
 import BSCANE2 :: *;
 import JTAG_SIME2 :: *;
 import JTAG_Xilinx :: *;
+import JTAG_TB :: *;
 
 (* synthesize *)
 module [Module] mkTestXilJTAG(TestHandler);
@@ -28,7 +29,6 @@ module [Module] mkTestXilJTAG(TestHandler);
     Wire#(Bit#(1)) ext_tdo  <- mkBypassWire;
 
     Reg#(Bit#(32)) rOut     <- mkRegU;
-    Reg#(Bit#(32)) rCount   <- mkRegU;
 
     //handles clocking
     let jtag_stim <- mkJTAGShim();
@@ -65,16 +65,16 @@ module [Module] mkTestXilJTAG(TestHandler);
     Stmt s = seq
         $display("Hello");
 
-        jtag_reset(rCount, wtck, ext_tms, ext_tdi);
-        jtag_ir(rCount, wtck, ext_tms, ext_tdi, c_INSTR_BYPASS);
-        jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
+        jtag_reset(wtck, ext_tms, ext_tdi);
+        jtag_ir(wtck, ext_tms, ext_tdi, c_INSTR_BYPASS);
+        jtag_idle(wtck, ext_tms, ext_tdi, 10);
 
-        jtag_ir(rCount, wtck, ext_tms, ext_tdi, c_INSTR_IDCODE);
-        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
+        jtag_ir(wtck, ext_tms, ext_tdi, c_INSTR_IDCODE);
+        jtag_dr_ret_del(wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
         $display("IDCODE: %0x", rOut);
 
-        jtag_ir(rCount, wtck, ext_tms, ext_tdi, c_INSTR_USER3);
-        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
+        jtag_ir(wtck, ext_tms, ext_tdi, c_INSTR_USER3);
+        jtag_dr_ret_del(wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
         $display("USER: %0x", rOut);
 
         delay(20);

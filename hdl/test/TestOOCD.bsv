@@ -17,7 +17,7 @@ import ClockUtil :: *;
 `define IR_WIDTH 8
 
 interface MyJTAGSystem_ifc;
-    method Bit#(32) user_reg0();
+    method ActionValue#(Bit#(32)) user_reg0();
     interface Client#(BusRequest#(32, 32), BusResponse#(32)) bus;
 endinterface
 
@@ -37,15 +37,14 @@ module [JTAGSystem#(2, `IR_WIDTH)] oocdJTAGSystem#(Clock bus_clk, Reset bus_rst)
         instr_idcode: 0, //IDCODE instruction
         reset_idcode_not_bypass: True //reset to idcode not bypass
     };
-    
-    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hBEEFAFFE);
-    JTAG_BusAdapter_ifc#(32, 32) ifc <- mkJTAG_BusAdapter(bus_clk, bus_rst);
 
-    setTAPConfig(jtag_config);
-    addJTAGReg(reg0);
-    addJTAGReg(ifc.jtag_bus_ctrl);
+    Reg#(Bit#(32))                reg0_value <- mkReg('hBEEFAFFE);
+    JTAGRegAccess_ifc#(Bit#(32))      reg0       <- jtag_reg_rw(reg0_value, 'h02);
+    JTAG_BusAdapter_ifc#(32, 32)  ifc        <- mkJTAG_BusAdapter('hDE, bus_clk, bus_rst);
 
-    method user_reg0 if(reg0.wr_o()) = reg0.reg_o;
+    set_tap_config(jtag_config);
+
+    method user_reg0 = reg0.updated;
 
     interface bus = ifc.bus;
 
@@ -53,7 +52,7 @@ endmodule
 
 (* synthesize *)
 module mkTAP#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
-    let jtag_sys <- buildJTAGSystem(oocdJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
+    let jtag_sys <- build_jtag_system(oocdJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
     return jtag_sys;
 endmodule
 

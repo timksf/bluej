@@ -13,6 +13,7 @@ import TestHelper :: *;
 
 import BlueJ :: *;
 import ClockUtil :: *;
+import JTAG_TB :: *;
 
 `define IR_WIDTH 8
 
@@ -37,22 +38,21 @@ module [JTAGSystem#(2, `IR_WIDTH)] myJTAGSystem#(Clock bus_clk, Reset bus_rst)(M
         reset_idcode_not_bypass: True //reset to idcode not bypass
     };
 
-    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hC0DEAFFE);
-    JTAG_BusAdapter_ifc#(32, 32) ifc <- mkJTAG_BusAdapter(bus_clk, bus_rst);
+    Reg#(Bit#(32))                reg0_value <- mkReg('hC0DEAFFE);
+    JTAGRegAccess_ifc#(Bit#(32))  reg0       <- jtag_reg_rw(reg0_value, 'h02);
+    JTAG_BusAdapter_ifc#(32, 32)  ifc        <- mkJTAG_BusAdapter('hDE, bus_clk, bus_rst);
 
-    setTAPConfig(jtag_config);
-    addJTAGReg(reg0);
-    addJTAGReg(ifc.jtag_bus_ctrl);
+    set_tap_config(jtag_config);
 
-    method user_reg0 if(reg0.wr_o()) = actionvalue return reg0.reg_o(); endactionvalue;
+    method user_reg0 = reg0.updated;
 
     interface bus_client = ifc.bus;
-        
+
 endmodule
 
 (* synthesize *)
 module mkDUT#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
-    let jtag_sys <- buildJTAGSystem(myJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
+    let jtag_sys <- build_jtag_system(myJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
     return jtag_sys;
 endmodule
 
@@ -64,11 +64,11 @@ module [Module] mkTestBus(TestHandler);
 
     let jtag_stim <- mkJTAGShim(clocked_by bus_clk, reset_by bus_rst);
 
-    Wire#(Bit#(1)) wtck <- mkWire(clocked_by bus_clk, reset_by bus_rst);
-    Wire#(Bit#(1)) wtrst <- mkWire(clocked_by bus_clk, reset_by bus_rst);
-    Wire#(Bit#(1)) ext_tdi <- mkWire(clocked_by bus_clk, reset_by bus_rst);
-    Wire#(Bit#(1)) ext_tms <- mkWire(clocked_by bus_clk, reset_by bus_rst);
-    Wire#(Bit#(1)) ext_tdo <- mkBypassWire(clocked_by bus_clk, reset_by bus_rst);
+    Wire#(Bit#(1)) wtck     <- mkWire(clocked_by bus_clk, reset_by bus_rst);
+    Wire#(Bit#(1)) wtrst    <- mkWire(clocked_by bus_clk, reset_by bus_rst);
+    Wire#(Bit#(1)) ext_tdi  <- mkWire(clocked_by bus_clk, reset_by bus_rst);
+    Wire#(Bit#(1)) ext_tms  <- mkWire(clocked_by bus_clk, reset_by bus_rst);
+    Wire#(Bit#(1)) ext_tdo  <- mkBypassWire(clocked_by bus_clk, reset_by bus_rst);
 
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
@@ -89,7 +89,6 @@ module [Module] mkTestBus(TestHandler);
     mkConnection(toGet(dut.tdo),            toPut(jtag_stim.int_tdo));
     
     //testbench counter
-    Reg#(Bit#(32)) rCount <- mkRegU(clocked_by bus_clk, reset_by bus_rst);
 
     Reg#(JTAG_BusControl_Simple#(32, 32)) rg_req <- mkRegU(clocked_by bus_clk, reset_by bus_rst);
     Reg#(Bit#(68)) rOut <- mkReg(0, clocked_by bus_clk, reset_by bus_rst);
@@ -97,7 +96,7 @@ module [Module] mkTestBus(TestHandler);
     //test memory connected to bus ifc
     BRAM_Configure bram_cfg = defaultValue;
     bram_cfg.memorySize = 32;
-    bram_cfg.loadFormat = tagged Hex "test_data.txt";
+    bram_cfg.loadFormat = tagged Hex "../test/test_data.txt";
 
     BRAM1Port#(Bit#(32), Bit#(32)) bram <- mkBRAM1Server(bram_cfg, clocked_by bus_clk, reset_by bus_rst);
 
@@ -105,7 +104,6 @@ module [Module] mkTestBus(TestHandler);
     SyncPulseIfc        pStart          <- mkSyncPulseFromCC(bus_clk);
     SyncPulseIfc        pStopped        <- mkSyncPulseToCC(bus_clk, bus_rst);
     SyncBitIfc#(Bool)   syncStarted     <- mkSyncBitToCC(bus_clk, bus_rst);
-
 
     rule rbus_req;
         let req <- dut.device_ifc.bus_client.request.get();
@@ -126,23 +124,24 @@ module [Module] mkTestBus(TestHandler);
 
     Stmt s = seq
         syncStarted.send(True);
-        jtag_reset(rCount, wtck, ext_tms, ext_tdi);
-        jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'h02);
-        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
+        jtag_reset(wtck, ext_tms, ext_tdi);
+        jtag_ir(wtck, ext_tms, ext_tdi, 8'h02);
+        jtag_dr_ret_del(wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
         $display("[%0t] JTAG returned %08X", $time, rOut);
         delay(10);
-        jtag_ir(rCount, wtck, ext_tms, ext_tdi, 8'hDE);
+        jtag_ir(wtck, ext_tms, ext_tdi, 8'hDE);
         action
             JTAG_BusControl_Simple#(32, 32) rq = defaultValue;
+            rq.ignore = False;
             rq.write_not_read = False;
             rq.addr = 'h08;
             rg_req <= rq;
         endaction
         $display("Request: %0X ~ ", rg_req, fshow(rg_req));
-        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut, 1);
+        jtag_dr_ret_del(wtck, ext_tms, ext_tdi, ext_tdo, pack(rg_req), rOut, 1);
         //some idling to let data arrive
-        jtag_idle(rCount, wtck, ext_tms, ext_tdi, 4);
-        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 0, rOut, 1);
+        jtag_idle(wtck, ext_tms, ext_tdi, 4);
+        jtag_dr_ret_del(wtck, ext_tms, ext_tdi, ext_tdo, 0, rOut, 1);
         $display("[%0t] ", $time, fshow(JTAG_BusControl_Simple#(32,32)'(unpack(rOut))));
         delay(10);
     endseq;

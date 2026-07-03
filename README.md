@@ -119,7 +119,7 @@ endinterface
 
 ### `mkJTAGReg`, `mkJTAGRegR`, `mkJTAGBypass`
 
-A JTAG register serves as an endpoint in the JTAG system. Data can be shifted into the JTAG register and can also be shifted out again. Contained within a JTAG register are the hold register `rHR` and the shift register `rSR`. 
+A raw JTAG register is the primitive endpoint used by the higher-level JTAG system helpers. Data can be shifted into the JTAG register and can also be shifted out again. Contained within a JTAG register are the hold register `rHR` and the shift register `rSR`.
 `mkJTAGReg` is a special version of `mkJTAGRegR` that does not support a reset value, meaning the value stored inside the hold register after system reset is undefined. This is cheaper and might make sense whenever the JTAG register would be written initially anyways.
 
 Matching the TAP controller upstream control interface, the JTAG registers have a downstream control interface alongside the shift input TDI and output TDO as well as a pair of additional output signals `reg_o` (carrying data) and `wr_o` indicating valid output.
@@ -135,7 +135,7 @@ interface JTAG_Reg_ifc#(type t);
 
 endinterface
 ```
-The shift and control interface components will be connected to the JTAG system and the other two outputs can be used by the parts of the system isolated from JTAG.
+The shift and control interface components are usually connected by `jtag_endpoint` or one of the `jtag_reg_*` helpers. The raw `reg_o`/`wr_o` pair is still useful inside custom endpoints, but most device-facing code should consume the guarded `updated()` access method instead.
 
 With the type parameter `t`, an arbitrary storage type from the `Bits` typeclass can be used. The behaviour of the JTAG register matches the specification:
 The module parameter `t reg_i` is used during the capture phase. JTAG registers only act when they're selected by the TAP controller (or any other module providing an upstream JTAG control interface).
@@ -148,6 +148,30 @@ The module parameter `t reg_i` is used during the capture phase. JTAG registers 
 
 
 Because of some bluespec limitations, the bypass register with width 1 is its own module `mkJTAGBypass`.
+
+### `jtag_reg_*`, `jtag_sync_reg_*`, `jtag_endpoint`
+
+The JTAG system API owns the common register wiring and exposes a small device-facing access interface:
+```verilog
+interface JTAGRegAccess_ifc#(type t);
+    method ActionValue#(t) updated();
+endinterface
+```
+The `updated()` method is guarded by the JTAG update pulse and returns the updated value in that cycle. A rule can therefore consume a JTAG write with:
+```verilog
+rule consume_update;
+    let value <- reg_access.updated();
+    ...
+endrule
+```
+The normal constructors are:
+
+- `jtag_reg_ro(reg_i, instr)`: expose a value for JTAG reads; JTAG writes have no device-facing effect
+- `jtag_reg_wo(instr)`: accept JTAG writes and expose them via `updated()`
+- `jtag_reg_rw(device_reg, instr)`: expose a device `Reg#(t)` for JTAG reads, update it on JTAG writes, and provide the same write pulse via `updated()`
+- `jtag_reg_pulse(instr)`: expose a one-bit command register as a guarded `pulse()` action
+
+The `jtag_sync_reg_*` variants use the existing TCK-to-system-clock synchronizing register primitive and expose the same device-facing API in the system clock domain. `jtag_endpoint(jtag_reg, instr)` is the escape hatch for custom endpoints that need direct access to the raw `JTAG_Reg_ifc` internally.
 
 ### `mkJTAG_BusAdapter`
 
@@ -172,20 +196,20 @@ The typical flow for accessing the system bus via JTAG is as follows:
 2. Wait until bus response arrived (usually the bus is significantly faster than TCK)
 3. Read the bus response from the JTAG register
 
-To allow for a faster bus, there are FIFO synchronizers on the bus-facing interface.
+To allow for a faster bus, there are FIFO synchronizers on the bus-facing interface. The bus adapter is itself a JTAG system component; `mkJTAG_BusAdapter(instr, bus_clk, bus_rst)` owns its internal JTAG register and exports only the bus client interface.
 
-### `buildJTAGSystem`
+### `build_jtag_system`
 
-Helper module that allows easier creation of whole JTAG systems as shown in the figure above. Automates collecting all JTAG register TDOs and connecting them correctly to the TAP controller. 
+Helper module that allows easier creation of whole JTAG systems as shown in the figure above. It collects all JTAG endpoints, derives the TAP instruction vector from those endpoints, and connects their TDO/TDI/control paths to the TAP controller.
 
 A JTAG system has a special interface:
 
 - on one side the typical JTAG pins 
 - on the other side the "device"-facing, internal interface that allows interacting with the JTAG components instantiated inside the JTAG system
 
-The internal interface is entirely implementation specific and can be of arbitrary complexity. This is best shown with an example, suppose we want to have a JTAG register at instruction `'h02` with the constant output value `'hC0DEAFFE` and a bus adapter (see above) at instruction `'hDE`.
+The internal interface is entirely implementation specific and can be of arbitrary complexity. This is best shown with an example, suppose we want to have a JTAG register at instruction `'h02` with the reset value `'hC0DEAFFE` and a bus adapter (see above) at instruction `'hDE`.
 
-The device-facing interface lets us read the shift register and connect the bus:
+The device-facing interface lets us consume JTAG register updates and connect the bus:
 ```verilog
 interface MyJTAGSystem_ifc;
     method ActionValue#(Bit#(32)) user_reg0();
@@ -201,24 +225,19 @@ module [JTAGSystem#(2, `IR_WIDTH)] myJTAGSystem#(Clock bus_clk, Reset bus_rst)(M
         idcode_part: 'h04,
         idcode_ver: 0,
         reg_tdo: True, //tdo is registered (on falling tck) in real applications
-        instrs: vec(
-            'h02, //dummy register
-            'hDE //bus control register
-        ),
+        instrs: replicate(0), //derived from the registered endpoints below
         debug: True, //debug prints
         instr_idcode: 0,
         reset_idcode_not_bypass: True //reset to idcode not bypass
     };
 
-    JTAG_Reg_ifc#(Bit#(32)) reg0 <- mkJTAGReg('hC0DEAFFE);
-    JTAG_BusAdapter_ifc#(32, 32) ifc <- mkJTAG_BusAdapter(bus_clk, bus_rst);
+    Reg#(Bit#(32)) reg0_value <- mkReg('hC0DEAFFE);
+    JTAGRegAccess_ifc#(Bit#(32)) reg0 <- jtag_reg_rw(reg0_value, 'h02);
+    JTAG_BusAdapter_ifc#(32, 32) ifc <- mkJTAG_BusAdapter('hDE, bus_clk, bus_rst);
 
-    //magic functions, the order matters and is matched to the instruction vector
-    setTAPConfig(jtag_config);
-    addJTAGReg(reg0);
-    addJTAGReg(ifc.jtag_bus_ctrl);
+    set_tap_config(jtag_config);
 
-    method user_reg0 if(reg0.wr_o()) = actionvalue return reg0.reg_o(); endactionvalue;
+    method user_reg0 = reg0.updated;
 
     interface bus_client = ifc.bus;
         
@@ -228,7 +247,7 @@ Instantiating the custom JTAG system yields a synthesizable module:
 ```verilog
 (* synthesize *)
 module mkCustomJTAGSystem#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
-    let jtag_sys <- buildJTAGSystem(myJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
+    let jtag_sys <- build_jtag_system(myJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
     return jtag_sys;
 endmodule
 ```
@@ -302,4 +321,3 @@ Selecting data register 2
 [5606378] Got Bus request: BusRequest { write_not_read: False, addr: 'h00000008, data: 'h00000000 }
 [5606380] BRAM response: 'h34fad707
 ```
-

@@ -15,6 +15,7 @@ import BlueJ :: *;
 import GLBL :: *;
 import FPGATop :: *;
 import JTAG_SIME2 :: *;
+import JTAG_TB :: *;
 
 (* synthesize *)
 module [Module] mkTestFPGATop(TestHandler);
@@ -32,7 +33,6 @@ module [Module] mkTestFPGATop(TestHandler);
     Wire#(Bit#(1)) ext_tdo <- mkBypassWire(clocked_by sys_clk, reset_by sys_rst);
 
     Reg#(Bit#(32)) rOut     <- mkRegU(clocked_by sys_clk);
-    Reg#(Bit#(32)) rCount   <- mkRegU(clocked_by sys_clk);
 
     let jtag_stim <- mkJTAGShim(clocked_by sys_clk, reset_by sys_rst);
 
@@ -66,21 +66,21 @@ module [Module] mkTestFPGATop(TestHandler);
     Stmt s = seq
         syncStarted.send(True);
         $display("Hello");
-        jtag_reset(rCount, wtck, ext_tms, ext_tdi);
+        jtag_reset(wtck, ext_tms, ext_tdi);
 
         //smoke-test: read IDCODE from BSCANE2
-        jtag_ir(rCount, wtck, ext_tms, ext_tdi, c_INSTR_IDCODE);
-        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
+        jtag_ir(wtck, ext_tms, ext_tdi, c_INSTR_IDCODE);
+        jtag_dr_ret_del(wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
         $display("IDCODE: %0x", rOut);
 
         //scan LED control into jtag register
-        jtag_ir(rCount, wtck, ext_tms, ext_tdi, c_INSTR_USER3);
-        jtag_dr(rCount, wtck, ext_tms, ext_tdi, ext_tdo, (Bit#(36)'('hF << 4 | 1)));
+        jtag_ir(wtck, ext_tms, ext_tdi, c_INSTR_USER3);
+        jtag_dr(wtck, ext_tms, ext_tdi, (Bit#(36)'('hF << 4 | 1)));
 
         //some idle cycles to let the jtag reg sync...
-        jtag_idle(rCount, wtck, ext_tms, ext_tdi, 10);
+        jtag_idle(wtck, ext_tms, ext_tdi, 10);
 
-        jtag_dr_ret_del(rCount, wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
+        jtag_dr_ret_del(wtck, ext_tms, ext_tdi, ext_tdo, 'h0, rOut, 1);
         $display("USER3: %0x", rOut);
 
         delay(100);

@@ -154,7 +154,7 @@ module mkJTAG_TAP_Controller#(
     //could make vSelect take prio with && pack(sel_crossed) == 0
     if(shift_ir_crossed)
         int_tdo = ir_tdo_crossed;
-    else if(ir_crossed == 0)
+    else if(ir_crossed == tap_cfg.instr_idcode)
         int_tdo = idc_tdo_crossed;
     else if(pack(sel_crossed) == 0 && ir_crossed == pack(instr_bypass))
         int_tdo = byp_tdo_crossed;
@@ -163,7 +163,7 @@ module mkJTAG_TAP_Controller#(
             if(sel_crossed[i])
                 int_tdo = tdos_crossed[i];
     
-    Bool id_sel  = pack(vSelect) == 0 && jtagIR.reg_o() == 0;
+    Bool id_sel  = pack(vSelect) == 0 && jtagIR.reg_o() == tap_cfg.instr_idcode;
     Bool byp_sel = pack(vSelect) == 0 && jtagIR.reg_o() == pack(instr_bypass);
 
     //the IR is the only JTAGReg connected to the IR control lines of the TAP FSM

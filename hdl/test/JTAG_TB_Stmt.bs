@@ -1,0 +1,114 @@
+package JTAG_TB_Stmt (
+    jtag_sequence_hidden,
+    jtag_sequence_ret_hidden
+) where
+
+import List
+import StmtFSM
+
+-- This package keeps the public JTAG testbench API in JTAG_TB.bsv free of
+-- explicit scratch registers.  Stmt is a StmtM value, which is backed by a
+-- Module action.  By constructing the Stmt in this .bs package, we can allocate
+-- private shift registers that are instantiated when the enclosing mkFSM
+-- elaborates the statement.
+--
+-- The scan loop itself uses StmtFSM's SRepeat constructor.  SRepeat lowers to
+-- an internal repeat counter, so the caller's FSM sees one small loop body
+-- instead of one statically generated action per JTAG bit.  The repeat body only
+-- writes wires/registers and reads TDO, so it does not have the blocking-action
+-- issue that repeat can have with FIFO/Server/Get/Put style methods.
+
+jtag_capture_next_hidden :: (Add w1 1 w) => Bit w -> Bit 1 -> Bit w
+jtag_capture_next_hidden current tdo =
+    let next_msb :: Bit w
+        next_msb = (zeroExtend tdo) << (valueOf w1)
+    in (current >> 1) | next_msb
+
+-- tms_vec and tdi_vec use the original JTAG_TB convention: the first bit to
+-- drive is the MSB.  The hidden shift registers store the reversed vectors so
+-- each repeat iteration can drive bit 0 and shift right.
+jtag_sequence_hidden :: Wire (Bit 1) -> Wire (Bit 1) -> Wire (Bit 1) -> Bit w -> Bit w -> Stmt
+jtag_sequence_hidden tck tms tdi tms_vec tdi_vec =
+    S $
+    module
+        tms_shift :: Reg (Bit w)
+        tms_shift <- mkRegU
+        tdi_shift :: Reg (Bit w)
+        tdi_shift <- mkRegU
+
+        let load = SAction noPosInfo
+                   action {
+                       tms_shift := reverseBits tms_vec;
+                       tdi_shift := reverseBits tdi_vec
+                   }
+                   Nothing
+            low = SAction noPosInfo
+                  action {
+                      tck._write 0;
+                      tms._write tms_shift[0:0];
+                      tdi._write tdi_shift[0:0]
+                  }
+                  Nothing
+            high = SAction noPosInfo
+                   action {
+                       tck._write 1;
+                       tms._write tms_shift[0:0];
+                       tdi._write tdi_shift[0:0];
+                       tms_shift := tms_shift >> 1;
+                       tdi_shift := tdi_shift >> 1
+                   }
+                   Nothing
+            body = SSeq noPosInfo (Cons low (Cons high Nil))
+            loop = SRepeat noPosInfo (fromInteger (valueOf w)) body
+
+        return ((), Cons load (Cons loop Nil))
+
+-- capture_vec follows the same MSB-first scan order as tms_vec/tdi_vec.  A set
+-- capture bit means "sample TDO during this high phase".  Captured bits are
+-- shifted into the result register from the MSB side; after w samples, the first
+-- sampled TDO bit has naturally shifted down to bit 0, matching the old indexed
+-- testbench behavior.
+jtag_sequence_ret_hidden :: (Add w1 1 w) =>
+                            Wire (Bit 1) -> Wire (Bit 1) -> Wire (Bit 1) -> Wire (Bit 1) ->
+                            Bit sw -> Bit sw -> Bit sw -> Reg (Bit w) -> Stmt
+jtag_sequence_ret_hidden tck tms tdi tdo tms_vec tdi_vec capture_vec out =
+    S $
+    module
+        tms_shift :: Reg (Bit sw)
+        tms_shift <- mkRegU
+        tdi_shift :: Reg (Bit sw)
+        tdi_shift <- mkRegU
+        capture_shift :: Reg (Bit sw)
+        capture_shift <- mkRegU
+
+        let load = SAction noPosInfo
+                   action {
+                       tms_shift := reverseBits tms_vec;
+                       tdi_shift := reverseBits tdi_vec;
+                       capture_shift := reverseBits capture_vec
+                   }
+                   Nothing
+            low = SAction noPosInfo
+                  action {
+                      tck._write 0;
+                      tms._write tms_shift[0:0];
+                      tdi._write tdi_shift[0:0]
+                  }
+                  Nothing
+            high = SAction noPosInfo
+                   action {
+                       tck._write 1;
+                       tms._write tms_shift[0:0];
+                       tdi._write tdi_shift[0:0];
+                       if capture_shift[0:0] == 1
+                          then out := jtag_capture_next_hidden out tdo
+                          else noAction;
+                       tms_shift := tms_shift >> 1;
+                       tdi_shift := tdi_shift >> 1;
+                       capture_shift := capture_shift >> 1
+                   }
+                   Nothing
+            body = SSeq noPosInfo (Cons low (Cons high Nil))
+            loop = SRepeat noPosInfo (fromInteger (valueOf sw)) body
+
+        return ((), Cons load (Cons loop Nil))
