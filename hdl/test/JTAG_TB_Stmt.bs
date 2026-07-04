@@ -6,17 +6,26 @@ package JTAG_TB_Stmt (
 import List
 import StmtFSM
 
--- This package keeps the public JTAG testbench API in JTAG_TB.bsv free of
--- explicit scratch registers.  Stmt is a StmtM value, which is backed by a
--- Module action.  By constructing the Stmt in this .bs package, we can allocate
--- private shift registers that are instantiated when the enclosing mkFSM
--- elaborates the statement.
+-- JTAG_TB.bsv presents scan helpers as plain functions which return Stmt
+-- values.  The caller should not have to instantiate a scratch counter or shift
+-- register just to run a scan in a test FSM.
 --
--- The scan loop itself uses StmtFSM's SRepeat constructor.  SRepeat lowers to
--- an internal repeat counter, so the caller's FSM sees one small loop body
--- instead of one statically generated action per JTAG bit.  The repeat body only
--- writes wires/registers and reads TDO, so it does not have the blocking-action
--- issue that repeat can have with FIFO/Server/Get/Put style methods.
+-- Bluespec's Stmt type is really a StmtM value.  In the standard library that
+-- monad is backed by Module, and the S constructor lets us provide the Module
+-- action which builds the statement.  Writing this helper in .bs gives direct
+-- access to that constructor, so we can allocate private mkRegU state here while
+-- still exporting an ordinary BSV-callable function.
+--
+-- The resulting hardware is instantiated when the surrounding mkFSM elaborates
+-- the returned Stmt.  Each scan helper below therefore owns its private shift
+-- registers, and the public testbench API stays context-free.
+--
+-- The loop uses StmtFSM's SRepeat node.  SRepeat has its own implementation
+-- counter inside the generated FSM, which avoids recursively unrolling one
+-- action pair per JTAG bit at compile time.  There is a known trap with repeat
+-- bodies that can block while also updating the repeat counter.  These scan
+-- bodies only drive wires/registers and sample TDO, so they do not rely on that
+-- blocking behavior.
 
 jtag_capture_next_hidden :: (Add w1 1 w) => Bit w -> Bit 1 -> Bit w
 jtag_capture_next_hidden current tdo =
@@ -24,9 +33,14 @@ jtag_capture_next_hidden current tdo =
         next_msb = (zeroExtend tdo) << (valueOf w1)
     in (current >> 1) | next_msb
 
--- tms_vec and tdi_vec use the original JTAG_TB convention: the first bit to
--- drive is the MSB.  The hidden shift registers store the reversed vectors so
--- each repeat iteration can drive bit 0 and shift right.
+-- tms_vec and tdi_vec use the original JTAG_TB convention: the first scan bit
+-- is the MSB of the argument.  Internally we reverse the vectors once, then each
+-- repeat iteration can drive bit 0 and shift right.  This keeps the generated
+-- loop small and preserves the old visible scan ordering.
+--
+-- Each iteration has a low phase and a high phase.  TMS/TDI are held stable in
+-- both phases; the shift registers advance during the high phase after the bit
+-- has been presented on TCK=1.
 jtag_sequence_hidden :: Wire (Bit 1) -> Wire (Bit 1) -> Wire (Bit 1) -> Bit w -> Bit w -> Stmt
 jtag_sequence_hidden tck tms tdi tms_vec tdi_vec =
     S $
@@ -63,11 +77,15 @@ jtag_sequence_hidden tck tms tdi tms_vec tdi_vec =
 
         return ((), Cons load (Cons loop Nil))
 
+-- This is the readback variant.  The scan itself can be wider than the captured
+-- value, so sw is the scan width and w is the output register width.  The Add
+-- proviso gives jtag_capture_next_hidden the index of the output MSB.
+--
 -- capture_vec follows the same MSB-first scan order as tms_vec/tdi_vec.  A set
--- capture bit means "sample TDO during this high phase".  Captured bits are
--- shifted into the result register from the MSB side; after w samples, the first
--- sampled TDO bit has naturally shifted down to bit 0, matching the old indexed
--- testbench behavior.
+-- capture bit means "sample TDO during this high phase".  Captured bits enter
+-- the result register at the MSB and shift right on each captured sample; after
+-- w samples, the first sampled TDO bit has naturally moved to bit 0.  That
+-- matches the previous indexed testbench implementation.
 jtag_sequence_ret_hidden :: (Add w1 1 w) =>
                             Wire (Bit 1) -> Wire (Bit 1) -> Wire (Bit 1) -> Wire (Bit 1) ->
                             Bit sw -> Bit sw -> Bit sw -> Reg (Bit w) -> Stmt
