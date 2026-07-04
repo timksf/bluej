@@ -23,26 +23,16 @@ endinterface
 
 module [JTAGSystem#(2, `IR_WIDTH)] oocdJTAGSystem#(Clock bus_clk, Reset bus_rst)(MyJTAGSystem_ifc);
 
-    JTAG_TAP_Config_t#(2, `IR_WIDTH) jtag_config = JTAG_TAP_Config_t {
-        idcode_man: 'h3A7,
-        idcode_part: 'h04,
-        idcode_ver: 0,
-        //could not get OpenOCD with remote bitbang to work when TDO is delayed..
-        reg_tdo: False,
-        debug: True,
-        instrs: vec(
-            'h02,   //dummy register
-            'hDE    //bus adapter register
-        ),
-        instr_idcode: 0, //IDCODE instruction
-        reset_idcode_not_bypass: True //reset to idcode not bypass
-    };
+    jtag_meta_config(0, 'h3A7, 'h04);
+    //could not get OpenOCD with remote bitbang to work when TDO is delayed..
+    jtag_set_reg_tdo(False);
+    jtag_set_idcode_instr(0);
+    jtag_rst_to_idcode();
+    jtag_enable_debug();
 
     Reg#(Bit#(32))                reg0_value <- mkReg('hBEEFAFFE);
-    JTAGRegAccess_ifc#(Bit#(32))      reg0       <- jtag_reg_rw(reg0_value, 'h02);
+    JTAGRegAccess_ifc#(Bit#(32))  reg0       <- jtag_reg_rw(reg0_value, 'h02);
     JTAG_BusAdapter_ifc#(32, 32)  ifc        <- mkJTAG_BusAdapter('hDE, bus_clk, bus_rst);
-
-    set_tap_config(jtag_config);
 
     method user_reg0 = reg0.updated;
 

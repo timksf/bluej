@@ -73,6 +73,12 @@ endfunction
 typedef Bit#(w) JTAGInstruction_t#(numeric type w);
 
 typedef struct {
+    Bit#(4)  idcode_ver;
+    Bit#(11) idcode_man;
+    Bit#(16) idcode_part;
+} JTAG_TAP_Meta_Config_t deriving(FShow, Eq, Bits);
+
+typedef struct {
     Bit#(11) idcode_man;
     Bit#(16) idcode_part;
     Bit#(4) idcode_ver;
@@ -87,6 +93,9 @@ typedef struct {
     cycle at the end of a JTAG register read.
     */
     Bool reg_tdo;
+    // Primitive TAP configuration includes the fully derived instruction map.
+    // Higher-level JTAGSystem code should collect endpoint instructions and
+    // build this vector rather than asking users to specify it separately.
     Vector#(n, JTAGInstruction_t#(w)) instrs;
     JTAGInstruction_t#(w) instr_idcode;
     Bool reset_idcode_not_bypass;

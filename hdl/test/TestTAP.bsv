@@ -21,22 +21,15 @@ endinterface
 
 module [JTAGSystem#(1, `IR_WIDTH)] myJTAGSystem(MyJTAGSystem_ifc);
 
-    JTAG_TAP_Config_t#(1, `IR_WIDTH) tap_config = JTAG_TAP_Config_t {
-        idcode_man: 'b00000010111,
-        idcode_part: 'h04,
-        idcode_ver: 0,
-        reg_tdo: True,
-        instrs: vec('h02),
-        debug: True,
-        instr_idcode: 0, //IDCODE instruction
-        reset_idcode_not_bypass: True //reset to idcode not bypass
-    };
+    jtag_meta_config(0, 'b00000010111, 'h04);
+    jtag_set_reg_tdo(True);
+    jtag_set_idcode_instr(0);
+    jtag_rst_to_idcode();
+    jtag_enable_debug();
 
     //we expect this module to be clocked/reset by tck and trst
     Reg#(Bit#(32))                my_reg_value <- mkReg('hDEADBEEF);
     JTAGRegAccess_ifc#(Bit#(32))  my_reg       <- jtag_reg_rw(my_reg_value, 'h02);
-
-    set_tap_config(tap_config);
 
     //blocks if no value loaded into register
     method myreg_read = my_reg.updated;

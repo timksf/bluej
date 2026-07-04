@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <string.h>
 #include <unistd.h>
 
 #define SOCKET_NAME "/tmp/jtag.sock"
@@ -11,10 +14,29 @@ extern "C" {
 #endif
 
 int tdo_requested, tdo_sent;
+static int32_t listen_fd = -1;
+
+static int make_nonblocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if(flags == -1) {
+        printf("Failed to get socket flags: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if(fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        printf("Failed to set socket nonblocking: %s\n", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
 
 int32_t c_socket_init(uint32_t __unused) {
     int32_t socket_fd;
     int32_t ret;
+
+    if(listen_fd != -1)
+        return listen_fd;
 
     //disable stdout buffering to not delay prints
     setvbuf(stdout, NULL, _IONBF, 0); 
@@ -36,16 +58,19 @@ int32_t c_socket_init(uint32_t __unused) {
 
     ret = bind(socket_fd, (const sockaddr*) &saddr, sizeof(sockaddr_un));
     if(ret == -1) {
-        printf("Failed to bind socket\n");
+        printf("Failed to bind socket %s: %s\n", SOCKET_NAME, strerror(errno));
+        close(socket_fd);
         return -1;
     }
 
-    ret = listen(socket_fd, 0);
+    ret = listen(socket_fd, 1);
     if(ret == -1) {
-        printf("Failed to listen on socket\n");
+        printf("Failed to listen on socket %s: %s\n", SOCKET_NAME, strerror(errno));
+        close(socket_fd);
         return -1;
     }
 
+    listen_fd = socket_fd;
     printf("Started socket %s\n", SOCKET_NAME);
 
     return socket_fd;
@@ -58,6 +83,10 @@ int32_t c_socket_accept(int32_t socket_fd) {
     if(client_fd == -1) {
         // printf("No connection to accept\n");
     } else {
+        if(make_nonblocking(client_fd) == -1) {
+            close(client_fd);
+            return -1;
+        }
         printf("Accepted remote connection\n");
     }
 

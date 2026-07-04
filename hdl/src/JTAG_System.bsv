@@ -39,15 +39,19 @@ endinterface
 
 //TODO: instead of this struct, introduce new "IJTAG" interface for internal jtag components
 typedef struct {
-    Maybe#(JTAGInstruction_t#(w)) instr;
-    ReadOnly#(Bit#(1))           tdo;
-    WriteOnly#(Bit#(1))          tdi;
-    JTAG_Ctrl_Dn_ifc             ctrl;
+    JTAGInstruction_t#(w) instr;
+    ReadOnly#(Bit#(1))   tdo;
+    WriteOnly#(Bit#(1))  tdi;
+    JTAG_Ctrl_Dn_ifc     ctrl;
 } IJTAG_#(numeric type w);
 
 typedef union tagged {
-    IJTAG_#(w) IJTAG;
-    JTAG_TAP_Config_t#(n, w) TAPConfig;
+    IJTAG_#(w)             IJTAG;
+    JTAG_TAP_Meta_Config_t TAPMetaConfig;
+    Bool                   RegTDOConfig;
+    JTAGInstruction_t#(w)  IDCodeInstruction;
+    Bool                   ResetIDCodeConfig;
+    Bool                   DebugConfig;
 } JTAGSystem_item#(numeric type n, numeric type w);
 
 //n: number of (custom) instructions, w: instruction width
@@ -57,40 +61,67 @@ function List#(IJTAG_#(w)) get_ijtag(JTAGSystem_item#(n, w) item);
     return item matches tagged IJTAG .ijtag ? List::cons(ijtag, Nil) : Nil;
 endfunction
 
-function List#(JTAG_TAP_Config_t#(n, w)) get_tap_cfg(JTAGSystem_item#(n, w) item);
-    return item matches tagged TAPConfig .cfg ? List::cons(cfg, Nil) : Nil;
+function List#(JTAG_TAP_Meta_Config_t) get_tap_meta_cfg(JTAGSystem_item#(n, w) item);
+    return item matches tagged TAPMetaConfig .cfg ? List::cons(cfg, Nil) : Nil;
 endfunction
 
-module [JTAGSystem#(n, w)] set_tap_config#(JTAG_TAP_Config_t#(n, w) cfg)();
-    //check if a config has already been specified
-    let ctx <- getContext;
-    let items = flatten(ctx);
-    function Bool f_match_cfg(JTAGSystem_item#(n, w) it) = it matches tagged TAPConfig ._c ? True : False;
-    let e = List::find(f_match_cfg, items);
-    Bool exists = e matches tagged Invalid ? False : True;
-    staticAssert(!exists, "TAP config already specified!");
-    addToCollection(tagged TAPConfig cfg);
-endmodule
+function List#(Bool) get_reg_tdo_cfg(JTAGSystem_item#(n, w) item);
+    return item matches tagged RegTDOConfig .cfg ? List::cons(cfg, Nil) : Nil;
+endfunction
 
-module [JTAGSystem#(n, w)] add_jtag_reg#(JTAG_Reg_ifc#(t) jtag_reg)();
+function List#(JTAGInstruction_t#(w)) get_idcode_instr_cfg(JTAGSystem_item#(n, w) item);
+    return item matches tagged IDCodeInstruction .cfg ? List::cons(cfg, Nil) : Nil;
+endfunction
 
-    JTAGSystem_item#(n, w) new_item =
-        tagged IJTAG IJTAG_ {
-            instr: tagged Invalid,
-            ctrl:  jtag_reg.ctrl,
-            tdo:   as_read_only(jtag_reg.tdo),
-            tdi:   as_write_only(jtag_reg.tdi)
-        };
+function List#(Bool) get_reset_idcode_cfg(JTAGSystem_item#(n, w) item);
+    return item matches tagged ResetIDCodeConfig .cfg ? List::cons(cfg, Nil) : Nil;
+endfunction
+
+function List#(Bool) get_debug_cfg(JTAGSystem_item#(n, w) item);
+    return item matches tagged DebugConfig .cfg ? List::cons(cfg, Nil) : Nil;
+endfunction
+
+module [JTAGSystem#(n, w)] jtag_meta_config#(Bit#(4) version, Bit#(11) man, Bit#(16) part)();
+    JTAG_TAP_Meta_Config_t cfg = JTAG_TAP_Meta_Config_t {
+        idcode_ver:  version,
+        idcode_man:  man,
+        idcode_part: part
+    };
+    JTAGSystem_item#(n, w) new_item = tagged TAPMetaConfig cfg;
 
     addToCollection(new_item);
+endmodule
 
+module [JTAGSystem#(n, w)] jtag_set_reg_tdo#(Bool reg_tdo)();
+    JTAGSystem_item#(n, w) new_item = tagged RegTDOConfig reg_tdo;
+    addToCollection(new_item);
+endmodule
+
+module [JTAGSystem#(n, w)] jtag_set_idcode_instr#(JTAGInstruction_t#(w) instr)();
+    JTAGSystem_item#(n, w) new_item = tagged IDCodeInstruction instr;
+    addToCollection(new_item);
+endmodule
+
+module [JTAGSystem#(n, w)] jtag_rst_to_idcode();
+    JTAGSystem_item#(n, w) new_item = tagged ResetIDCodeConfig True;
+    addToCollection(new_item);
+endmodule
+
+module [JTAGSystem#(n, w)] jtag_rst_to_bypass();
+    JTAGSystem_item#(n, w) new_item = tagged ResetIDCodeConfig False;
+    addToCollection(new_item);
+endmodule
+
+module [JTAGSystem#(n, w)] jtag_enable_debug();
+    JTAGSystem_item#(n, w) new_item = tagged DebugConfig True;
+    addToCollection(new_item);
 endmodule
 
 module [JTAGSystem#(n, w)] jtag_endpoint#(JTAG_Reg_ifc#(t) jtag_reg, JTAGInstruction_t#(w) instr)(JTAGRegAccess_ifc#(t));
 
     JTAGSystem_item#(n, w) new_item =
         tagged IJTAG IJTAG_ {
-            instr: tagged Valid instr,
+            instr: instr,
             ctrl:  jtag_reg.ctrl,
             tdo:   as_read_only(jtag_reg.tdo),
             tdi:   as_write_only(jtag_reg.tdi)
@@ -205,32 +236,44 @@ module [Module] build_jtag_system#(JTAGSystem#(n, w, ifc) jtag_sys, Clock tdo_cl
     provisos(Add#(1, a__, w));
 
     let {coll_device_ifc, items} <- getCollection(jtag_sys);
-    let jtag_regs                 = List::concat(List::map(get_ijtag, items));
-    let tap_cfgs                  = List::concat(List::map(get_tap_cfg, items)); //should only be a single one
+    let jtag_regs        = List::concat(List::map(get_ijtag, items));
+    let tap_meta_cfgs    = List::concat(List::map(get_tap_meta_cfg, items));
+    let reg_tdo_cfgs     = List::concat(List::map(get_reg_tdo_cfg, items));
+    let idcode_instr_cfg = List::concat(List::map(get_idcode_instr_cfg, items));
+    let reset_cfgs       = List::concat(List::map(get_reset_idcode_cfg, items));
+    let debug_cfgs       = List::concat(List::map(get_debug_cfg, items));
 
-    staticAssert(List::length(tap_cfgs) == 1, "No TAP configuration provided");
+    staticAssert(List::length(tap_meta_cfgs) == 1, "No JTAG meta configuration provided");
+    staticAssert(List::length(reg_tdo_cfgs) <= 1, "JTAG TDO register config specified more than once");
+    staticAssert(List::length(idcode_instr_cfg) <= 1, "JTAG IDCODE instruction specified more than once");
+    staticAssert(List::length(reset_cfgs) <= 1, "JTAG reset instruction specified more than once");
+    staticAssert(List::length(debug_cfgs) <= 1, "JTAG debug config specified more than once");
     staticAssert(List::length(jtag_regs) == valueof(n), "Instruction count and JTAG reg mismatch");
 
-    let tap_cfg_base = tap_cfgs[0];
+    let tap_meta = tap_meta_cfgs[0];
+
+    Bool reg_tdo = List::length(reg_tdo_cfgs) == 0 ? True : reg_tdo_cfgs[0];
+    JTAGInstruction_t#(w) instr_idcode = List::length(idcode_instr_cfg) == 0 ? 0 : idcode_instr_cfg[0];
+    Bool reset_idcode_not_bypass = List::length(reset_cfgs) == 0 ? True : reset_cfgs[0];
+    Bool debug = List::length(debug_cfgs) == 0 ? False : debug_cfgs[0];
 
     //collect TDOs from jtag registers
     Vector#(n, ReadOnly#(Bit#(1)))    tdos   = newVector;
     Vector#(n, JTAGInstruction_t#(w)) instrs = newVector;
     for(Integer i = 0; i < valueof(n); i = i + 1) begin
         tdos[i] = jtag_regs[i].tdo;
-        instrs[i] = jtag_regs[i].instr matches tagged Valid .instr ? instr : tap_cfg_base.instrs[i];
+        instrs[i] = jtag_regs[i].instr;
     end
-    //the i-th added jtag register is mapped to the i-th derived instruction
 
     JTAG_TAP_Config_t#(n, w) tap_cfg = JTAG_TAP_Config_t {
-        idcode_man: tap_cfg_base.idcode_man,
-        idcode_part: tap_cfg_base.idcode_part,
-        idcode_ver: tap_cfg_base.idcode_ver,
-        reg_tdo: tap_cfg_base.reg_tdo,
+        idcode_man: tap_meta.idcode_man,
+        idcode_part: tap_meta.idcode_part,
+        idcode_ver: tap_meta.idcode_ver,
+        reg_tdo: reg_tdo,
         instrs: instrs,
-        instr_idcode: tap_cfg_base.instr_idcode,
-        reset_idcode_not_bypass: tap_cfg_base.reset_idcode_not_bypass,
-        debug: tap_cfg_base.debug
+        instr_idcode: instr_idcode,
+        reset_idcode_not_bypass: reset_idcode_not_bypass,
+        debug: debug
     };
 
     JTAG_TAP_Controller_ifc#(n) tap <- mkJTAG_TAP_Controller(

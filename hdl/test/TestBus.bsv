@@ -24,25 +24,15 @@ endinterface
 
 module [JTAGSystem#(2, `IR_WIDTH)] myJTAGSystem#(Clock bus_clk, Reset bus_rst)(MyJTAGSystem_ifc);
 
-    JTAG_TAP_Config_t#(2, `IR_WIDTH) jtag_config = JTAG_TAP_Config_t {
-        idcode_man: 'b00000010111,
-        idcode_part: 'h04,
-        idcode_ver: 0,
-        reg_tdo: True, //tdo is registered (on falling tck) in real applications
-        instrs: vec(
-            'h02, //dummy register
-            'hDE //bus control register
-        ),
-        debug: True,
-        instr_idcode: 0,
-        reset_idcode_not_bypass: True //reset to idcode not bypass
-    };
+    jtag_meta_config(0, 'b00000010111, 'h04);
+    jtag_set_reg_tdo(True);
+    jtag_set_idcode_instr(0);
+    jtag_rst_to_idcode();
+    jtag_enable_debug();
 
     Reg#(Bit#(32))                reg0_value <- mkReg('hC0DEAFFE);
     JTAGRegAccess_ifc#(Bit#(32))  reg0       <- jtag_reg_rw(reg0_value, 'h02);
     JTAG_BusAdapter_ifc#(32, 32)  ifc        <- mkJTAG_BusAdapter('hDE, bus_clk, bus_rst);
-
-    set_tap_config(jtag_config);
 
     method user_reg0 = reg0.updated;
 

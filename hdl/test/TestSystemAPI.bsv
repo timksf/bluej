@@ -16,16 +16,10 @@ endinterface
 
 module [JTAGSystem#(9, `IR_WIDTH)] apiJTAGSystem#(Clock sys_clk, Reset sys_rst)(APITest_ifc);
 
-    JTAG_TAP_Config_t#(9, `IR_WIDTH) tap_config = JTAG_TAP_Config_t {
-        idcode_man: 'b00000010111,
-        idcode_part: 'h04,
-        idcode_ver: 0,
-        reg_tdo: True,
-        instrs: replicate(0),
-        debug: False,
-        instr_idcode: 0,
-        reset_idcode_not_bypass: True
-    };
+    jtag_meta_config(0, 'b00000010111, 'h04);
+    jtag_set_reg_tdo(True);
+    jtag_set_idcode_instr(0);
+    jtag_rst_to_idcode();
 
     Reg#(Bit#(8)) rw_value        <- mkReg('h12);
     Reg#(Bit#(8)) wo_seen         <- mkReg(0);
@@ -62,8 +56,6 @@ module [JTAGSystem#(9, `IR_WIDTH)] apiJTAGSystem#(Clock sys_clk, Reset sys_rst)(
     JTAGRegAccess_ifc#(Bit#(8)) sync_wo    <- jtag_sync_reg_wo(instr_sync_wo, sys_clk, sys_rst);
     JTAGRegAccess_ifc#(Bit#(8)) sync_rw    <- jtag_sync_reg_rw(sync_rw_value, instr_sync_rw, sys_clk, sys_rst);
     JTAGPulseAccess_ifc          sync_pulse <- jtag_sync_reg_pulse(instr_sync_pulse, sys_clk, sys_rst);
-
-    set_tap_config(tap_config);
 
     rule consume_wo;
         let value <- wo.updated();
