@@ -171,6 +171,19 @@ module mkJTAGShim(JTAG_Stim_ifc);
 
 endmodule
 
+interface JTAG_TDO_NullCrossing_ifc;
+    method Bit#(1) ext_tdo();
+endinterface
+
+module mkJTAGTDONullCrossing#(Bit#(1) int_tdo, Clock tdo_clk, Reset tdo_rst)(JTAG_TDO_NullCrossing_ifc);
+
+    let clk <- exposeCurrentClock();
+    let tdo_crossed <- mkNullCrossingWire(clk, int_tdo, clocked_by tdo_clk, reset_by tdo_rst);
+
+    method ext_tdo = tdo_crossed;
+
+endmodule
+
 // module mkJTAGShim_old#(
 //     Clock tck,
 //     Reset trst,

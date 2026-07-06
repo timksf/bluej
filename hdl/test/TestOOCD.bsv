@@ -24,8 +24,7 @@ endinterface
 module [JTAGSystem#(2, `IR_WIDTH)] oocdJTAGSystem#(Clock bus_clk, Reset bus_rst)(MyJTAGSystem_ifc);
 
     jtag_meta_config(0, 'h3A7, 'h04);
-    //could not get OpenOCD with remote bitbang to work when TDO is delayed..
-    jtag_set_reg_tdo(False);
+    jtag_set_reg_tdo(True);
     jtag_set_idcode_instr(0);
     jtag_rst_to_idcode();
     jtag_enable_debug();
@@ -52,8 +51,6 @@ module [Module] mkTestOOCD(TestHandler);
     let bus_clk <- mkAbsoluteClock(0, 2);
     let bus_rst <- mkAsyncResetFromCR(2, bus_clk);
 
-    //for sampling TDO at the correct time, does not work with registered TDO output of the TAP
-    //but since this driver is only for simulation, accept this for now
     JTAG_TDO_Delay#(1) tdo_delay = ?;
     let oocd_driver <- mkJTAG_Driver_OOCD(tdo_delay, clocked_by bus_clk, reset_by bus_rst);
     JTAG_Stim_ifc jtag_stim <- mkJTAGShim(clocked_by bus_clk, reset_by bus_rst);
@@ -64,6 +61,7 @@ module [Module] mkTestOOCD(TestHandler);
     let trst_inv = jtag_stim.tdo_rst;
 
     let tap <- mkTAP(tck_inv, trst_inv, bus_clk, bus_rst, clocked_by tck, reset_by trst);
+    let tdo_crossing <- mkJTAGTDONullCrossing(tap.tdo, tck_inv, trst_inv, clocked_by bus_clk, reset_by bus_rst);
 
     //test memory connected to bus ifc
     BRAM_Configure bram_cfg = defaultValue;
@@ -82,11 +80,10 @@ module [Module] mkTestOOCD(TestHandler);
     // mkConnection(toGet(wtrst),              toPut(jtag_stim.ext_trst));
     mkConnection(toGet(oocd_driver.ext_tdi),    toPut(jtag_stim.ext_tdi));
     mkConnection(toGet(oocd_driver.ext_tms),    toPut(jtag_stim.ext_tms));
-    mkConnection(toGet(jtag_stim.ext_tdo),      toPut(oocd_driver.ext_tdo));
+    mkConnection(toGet(tdo_crossing.ext_tdo),   toPut(oocd_driver.ext_tdo));
     
     mkConnection(toGet(jtag_stim.int_tms),  toPut(tap.tms));
     mkConnection(toGet(jtag_stim.int_tdi),  toPut(tap.tdi));
-    mkConnection(toGet(tap.tdo),            toPut(jtag_stim.int_tdo));
 
     rule rbus_req;
         let req <- tap.device_ifc.bus.request.get();

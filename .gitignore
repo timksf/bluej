@@ -10,3 +10,4 @@
 *_outv
 hdl/src/rtl/lib
 hdl/src/rtl/testing
+__pycache__
