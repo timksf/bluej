@@ -10,3 +10,12 @@ with OpenOCDTclClient() as runner:
         d = jtag.bus_read32(a)
         print(f"BRAM@{a:02x}={d:08x}")
         a += 1
+
+    print("Finished BRAM Test")
+    print()
+
+    jtag.irscan(0x02)
+    d = jtag.drscan(32, 0xDEADBEEF)
+    print(f"IR@0x02={d:08x}")
+    d = jtag.drscan(32, 0x0)
+    print(f"IR@0x02={d:08x}")
