@@ -274,45 +274,23 @@ Info : JTAG tap: bluej.tap tap/device found: 0x74e00081 (mfg: 0x040 (ProMos/Mose
 Warn : gdb services need one or more targets defined
 Info : Listening on port 6666 for tcl connections
 Info : Listening on port 4444 for telnet connections
-Info : accepting 'telnet' connection on tcp/4444
 ```
-The helper function `bluej_bus_read32` can be used to interact with the JTAG bus adapter associated with the JTAG instruction `hDE`. This tcl function takes care of placing the address and control bits at the right position in the bitfield that will be written to the JTAG shift register by OpenOCD:
-```tcl
-proc bluej_bus_read32 {addr} {
-    irscan bluej.tap 0xde
-    runtest 1
-    # mask addr to 32 bits and place into bits [63:32]
-    set a [expr {$addr & 0xffffffff}]
-    set request [expr {$a << 32}] ;# control bits = 0, data = 0
 
-    # send the 68-bit DR request
-    drscan bluej.tap 68 $request
-    runtest 10 ;#for now, arbitrary delay, depends on bus clock relation to tck
-    set response [drscan bluej.tap 68 0]
-    set response [hex2dec $response]
+The OpenOCD configuration file only sets up the adapter and TAP. BlueJ-specific operations are implemented in `hdl/test/bluej_openocd.py` by composing ordinary OpenOCD `irscan`, `drscan`, and `runtest` commands.
 
-    if {[expr {($response >> 65) & 1}]} { 
-        # echo [format "Received valid response"]
-    }
-
-    # check error (bit 66)
-    # if {[expr {($response >> 66) & 1}]} {
-    #     error "JTAG bus read: error bit set"
-    # }
-
-    #extract data from bits [31:0]
-    set data [expr {$response & 0xffffffff}]
-    return $data
-}
-```
 Example where the BRAM connected to the bus adapter was preloaded with `0x34FAD707` at `0x8`:
 ```bash
-Connected to localhost.
-Escape character is '^]'.
-Open On-Chip Debugger
-> echo [format "%x" [bluej_bus_read32 0x8]]
-34fad707
-> 
+python3 hdl/test/bluej_openocd.py --expect-idcode 0x474f --expect-data 0x34fad707
+```
+For longer scripts, keep OpenOCD running and connect to its Tcl port:
+```python
+from bluej_openocd import BlueJOpenOCD
+from py_openocd import OpenOCDTclClient
+
+with OpenOCDTclClient() as runner:
+    jtag = BlueJOpenOCD(runner=runner)
+    jtag.bus_write32(0x8, 0x12345678)
+    data = jtag.bus_read32(0x8)
 ```
 Bluespec simulation:
 ```
