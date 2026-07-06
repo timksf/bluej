@@ -30,7 +30,7 @@ While there are many other approaches that can also use JTAG, the main intention
         - [ ] BSCANE2 tunneling compliant with OpenOCD
 - [ ] OpenOCD testing
     - [x] OpenOCD bluesim simulation
-    - [ ] OpenOCD verilog simulation
+    - [x] OpenOCD verilog simulation
     - [x] OpenOCD FPGA test with BSCANE2
     - [ ] OpenOCD FPGA test of the custom TAP exposed on external device pins
 - [ ] FPGA testing
