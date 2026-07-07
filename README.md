@@ -16,11 +16,12 @@ Implemented:
 - A small JTAG system builder for collecting endpoints and deriving the TAP instruction map.
 - A simple JTAG bus adapter with CDC, used by the OpenOCD simulation smoke test.
 - BSCANE2 integration for Xilinx FPGA designs.
+- BSCANE2-to-JTAG tunneling for exposing a nested custom TAP through a USER data register.
 - Bluesim, Verilog simulation, and OpenOCD remote-bitbang test infrastructure.
 
 Still experimental:
 
-- BSCANE2 tunneling into a custom nested TAP.
+- OpenOCD support for driving the BSCANE2 tunnel as a nested TAP.
 - FPGA bus-adapter demo top.
 - Hardware OpenOCD validation for boards that are not available locally.
 
@@ -107,6 +108,65 @@ make -C hdl FPGA_TOP_MODULE=mkFPGATestSimplestTop fpga-verilog
 The default Vivado script currently targets `mkFPGATestSimpleTop`; use a
 matching `SCRIPT=...` override if you add another bitstream flow.
 
+## BSCANE2 Nested TAP Tunnel
+
+`mkBSCAN2JTAG` in `hdl/src/JTAG_Xilinx.bsv` turns a selected Xilinx `BSCANE2`
+USER data register into a transport for another JTAG TAP inside the FPGA
+fabric. The tunnel is a small packet decoder rather than a BlueJ endpoint: it
+consumes outer BSCAN DR scans and produces the inner TAP's `TCK`, `TMS`, `TDI`,
+and `TDO` signals.
+
+The exposed interface is:
+
+```verilog
+interface BSCAN2JTAG_ifc;
+    method Bit#(1) tms();
+    method Bit#(1) tdi();
+    method Action tdo(Bit#(1) b);
+
+    interface Clock tck;
+    interface Reset rst;
+
+    interface Clock tdo_clk;
+    interface Reset tdo_rst;
+endinterface
+```
+
+Use `tck` and `rst` to clock/reset the nested TAP. Use `tdo_clk` and `tdo_rst`
+for TDO-side registers or crossing logic, matching the convention used by the
+rest of BlueJ's TAP code. A typical connection looks like:
+
+```verilog
+let bscane2 <- mkBSCANE2(bscan_cfg, clocked_by tck);
+let tunnel <- mkBSCAN2JTAG(bscane2, clocked_by bscane2.bscan_tck, reset_by noReset);
+let nested_tap <- mkNestedTAP(tunnel.tdo_clk, tunnel.tdo_rst,
+                              clocked_by tunnel.tck, reset_by tunnel.rst);
+
+mkConnection(toGet(tunnel.tms), toPut(nested_tap.tms));
+mkConnection(toGet(tunnel.tdi), toPut(nested_tap.tdi));
+```
+
+The first selected DR scan after JTAG reset configures the number of bypass
+bits in front of the tunneled TAP. For the common case where the BlueJ TAP is
+the only nested TAP, shift `8'h00`. Later selected DR scans use this layout:
+
+- Prefix bypass bits for TAPs after the target TAP.
+- One mode bit.
+- Mode `0`: repeated `TMS, TDI` bit pairs, one pair per generated inner TCK.
+- Mode `1`: repeated `TDI` bits with inner `TMS` held low.
+- Postfix bypass bits for TAPs before the target TAP.
+
+Driving mode `0` is enough to replay normal JTAG state transitions through the
+tunnel: reset the inner TAP, select an inner IR, then shift an inner DR. The
+Verilog simulation `TestBSCANNested` demonstrates this by selecting BSCANE2
+USER3, configuring the tunnel for zero bypass bits, selecting inner instruction
+`8'h02`, and writing `32'h12345678` through the nested TAP.
+
+The tunnel protocol is based on Eugene Tarassov's
+[`bscan2jtag.vhdl`](https://github.com/eugene-tarassov/vivado-risc-v/blob/master/vhdl-wrapper/src/net/largest/riscv/vhdl/bscan2jtag.vhdl)
+from [`eugene-tarassov/vivado-risc-v`](https://github.com/eugene-tarassov/vivado-risc-v).
+That repository is licensed under the MIT License.
+
 ## OpenOCD Hardware Notes
 
 The simulation client in `hdl/test/bluej_openocd.py` shows the intended command
@@ -114,6 +174,10 @@ shape for hardware scripts: select an instruction with `irscan`, exchange data
 with `drscan`, and use `runtest` cycles for settling. The current FPGA example
 uses BSCANE2 USER3 directly rather than exposing the custom TAP on external
 pins.
+
+The BSCANE2 tunnel is not currently exposed as a native OpenOCD-discoverable
+TAP. Host tooling needs to select the outer Xilinx USER instruction and encode
+inner TAP scans into the tunnel's DR packet format.
 
 Useful external references:
 
