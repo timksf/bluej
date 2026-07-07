@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.118 (w)1999-2023 BSI
 [*] Sat Aug 30 15:48:45 2025
 [*]
-[dumpfile] "/home/tim/Documents/HardwareDescription/bluej/hdl/dump.vcd"
+[dumpfile] "dump.vcd"
 [dumpfile_mtime] "Sat Aug 30 11:18:54 2025"
 [dumpfile_size] 29383202
-[savefile] "/home/tim/Documents/HardwareDescription/bluej/hdl/tap_oocd_v.gtkw"
+[savefile] "tap_oocd_v.gtkw"
 [timestart] 1488890
 [size] 2560 1393
 [pos] -1 -1
@@ -38,7 +38,7 @@ main.top.\tap_ifc_jtagIDCode_i_bwSelect$wget
 @200
 -TAp
 @2022
-^1 /home/tim/Documents/HardwareDescription/bluej/hdl/tap_states.txt
+^1 tap_states.txt
 main.top.tap_ifc_tap_fsm_rState[3:0]
 @22
 main.top.tap_ifc_jtagIDCode_i_rSR[31:0]

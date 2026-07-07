@@ -1,57 +1,129 @@
-<!-- <img src="assets/riscv_debug.drawio.png" width=500> -->
-##
+# BlueJ
 
-Goal: provide low-effort access to design components through a standardized interface.
+BlueJ is a small Bluespec library for exposing FPGA design internals through
+JTAG. The goal is low-effort access to registers, pulses, and simple bus
+transactions from standard tooling, especially OpenOCD Tcl scripts.
 
-While there are many other approaches that can also use JTAG, the main intention is to use OpenOCD tcl scripting.
+The current v1 focus is Xilinx FPGA access through `BSCANE2`, plus simulation
+paths that exercise the same JTAG-facing logic before hardware is available.
 
-## 
+## Status
 
-- [x] TAP FSM
-- [ ] TAP with variable amount of user registers
-    - [x] TAP implementation with FSM and IR, BYPASS, IDCODE register and TDO mux
-    - [x] simple testbench
-    - [ ] self testing testbench
-- [x] JTAG register with shift and hold register
-- [x] JTAG sync register from TCK to faster system clock
-    - [ ] investigate clock crossing:
-        vivado complains about single destination register but bluespec crossing module uses handshaking with multiple destination registers in a CDC control path
-- [x] JTAG bus adapter with CDC (proof-of-concept)
-- [x] JTAG system builder using bluespec contexts
-- [x] JTAG tesbench drivers
-    - [x] Clock adapters for correct bluesim simulation
-        - [x] TCK driven from a wire 
-        - [x] TDO updates at falling TCK
-    - [x] StmtFSM functions for driving JTAG wires
-- [ ] JTAG Xilinx
-    - [x] BSCANE2 primitive integration with custom JTAG registers
-    - [ ] BSCANE2 tunneling
-        - [ ] BSCANE2 to JTAG conversion like https://github.com/eugene-tarassov/vivado-risc-v/blob/master/vhdl-wrapper/src/net/largest/riscv/vhdl/bscan2jtag.vhdl
-        - [ ] BSCANE2 tunneling compliant with OpenOCD
-- [ ] OpenOCD testing
-    - [x] OpenOCD bluesim simulation
-    - [x] OpenOCD verilog simulation
-    - [x] OpenOCD FPGA test with BSCANE2
-    - [ ] OpenOCD FPGA test of the custom TAP exposed on external device pins
-- [ ] FPGA testing
-    - [x] test simple JTAG register connected to BSCANE2
-    - [x] test JTAG register with CDC connected to BSCANE2
-    - [ ] test JTAG bus adapter with CDC connected to BSCANE2
+Implemented:
 
-## Running
+- IEEE 1149.1-style TAP FSM, instruction register, IDCODE register, BYPASS register, and TDO mux.
+- Raw, read-only, write-only, read/write, pulse, and synchronized JTAG register helpers.
+- A small JTAG system builder for collecting endpoints and deriving the TAP instruction map.
+- A simple JTAG bus adapter with CDC, used by the OpenOCD simulation smoke test.
+- BSCANE2 integration for Xilinx FPGA designs.
+- Bluesim, Verilog simulation, and OpenOCD remote-bitbang test infrastructure.
 
-## Examples
+Still experimental:
 
-The file `hdl/src/FPGATop.bsv` contains a few designs that demonstrate the use of some custom JTAG modules on a Xilinx FPGA.
+- BSCANE2 tunneling into a custom nested TAP.
+- FPGA bus-adapter demo top.
+- Hardware OpenOCD validation for boards that are not available locally.
 
-#### `mkFPGATestSimplest`
-Exposes 32 bit constant register via BSCANE2 user 3 and blinks LEDs with some constant divider.
+## Requirements
 
-#### `mkFPGATestSimple`
-Has JTAG configurable LEDs. The control register with a 32 bit divider and a configurable amount of LED enables is exposed via user register 3 on a BSCANE2 instance.
+- `git` with submodule support
+- Nix flakes, or equivalent local installs of Bluespec, GCC, CMake, Icarus Verilog, and optional OpenOCD/Vivado tooling
+- Vivado for the Xilinx FPGA flow
 
-#### `mkFPGATestBusTop`
-TODO
+Clone with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/timksf/bluej.git
+cd bluej
+```
+
+Enter the provided development shell:
+
+```bash
+nix develop ./nix
+```
+
+## Simulation
+
+Run the default smoke tests:
+
+```bash
+make -C hdl smoke
+```
+
+Run a single test:
+
+```bash
+make -C hdl RUN_TEST=TestTAP sim
+```
+
+Run the OpenOCD simulation testbench:
+
+```bash
+make -C hdl RUN_TEST=TestOOCD sim
+python3 hdl/test/bluej_openocd.py --expect-idcode 0x474f --expect-data 0x34fad707
+```
+
+For Verilog simulation:
+
+```bash
+make -C hdl RUN_TEST=TestOOCD SIM_TYPE=VERILOG sim
+```
+
+## FPGA Flow
+
+The v1 FPGA example is `mkFPGATestSimpleTop` in `hdl/src/FPGATop.bsv`.
+It wraps a differential system clock, instantiates `BSCANE2` on USER3, and
+exposes a synchronized JTAG register that controls LED blinking.
+
+Generate Bluespec Verilog for the FPGA top:
+
+```bash
+make -C hdl fpga-verilog
+```
+
+Run the Vivado Tcl flow for the default target:
+
+```bash
+make -C hdl fpga-vivado
+```
+
+Defaults:
+
+- Top module: `mkFPGATestSimpleTop`
+- Main package: `FPGATop`
+- Part: `xcku3p-ffvb676-2-e`
+- Constraints: `hdl/src/bluej_simple.xdc`
+- Vivado script: `hdl/src/synth.tcl`
+- BSCANE2 JTAG chain: USER3
+
+`mkFPGATestSimplestTop` is a smaller BSCANE2 register/LED counter example.
+Override the FPGA top for Verilog generation when needed:
+
+```bash
+make -C hdl FPGA_TOP_MODULE=mkFPGATestSimplestTop fpga-verilog
+```
+
+The default Vivado script currently targets `mkFPGATestSimpleTop`; use a
+matching `SCRIPT=...` override if you add another bitstream flow.
+
+## OpenOCD Hardware Notes
+
+The simulation client in `hdl/test/bluej_openocd.py` shows the intended command
+shape for hardware scripts: select an instruction with `irscan`, exchange data
+with `drscan`, and use `runtest` cycles for settling. The current FPGA example
+uses BSCANE2 USER3 directly rather than exposing the custom TAP on external
+pins.
+
+Useful external references:
+
+- <https://github.com/eugene-tarassov/vivado-risc-v/blob/master/vhdl-wrapper/src/net/largest/riscv/vhdl/jtag.vhdl>
+- <https://github.com/eugene-tarassov/vivado-risc-v/blob/master/vhdl-wrapper/src/net/largest/riscv/vhdl/bscan2jtag.vhdl>
+
+## License
+
+BlueJ is licensed under the MIT License. Submodules under `dep/` retain their
+own licenses.
 
 ## Modules
 
@@ -95,12 +167,9 @@ Vector#(n, ReadOnly#(Bit#(1))) vTDO_up
 ```
 The instruction codes supplied in the TAP configuration get mapped to these interfaces. 
 
-The general structure of the TAP controller is shown in the following image:
-
-<img src="assets/jtag_system.png" width=500>
-
-Image source: https://semiengineering.com/knowledge_centers/standards-laws/standards/ieee-1149/.
-There is no boundary register at this point and the "optional" registers are not located inside the TAP controller but connected to it via the TAP control interface.
+There is no boundary register at this point and the "optional" registers are
+not located inside the TAP controller but connected to it via the TAP control
+interface.
 
 Besides the control input TMS, there is the data input TDI, data output TDO as well as a forwarded TDI output port and `n` JTAG upstream control interfaces:
 ```verilog

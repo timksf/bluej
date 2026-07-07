@@ -1,10 +1,10 @@
-[submodule "hdl/dep/BSVTools"]
+[submodule "dep/BSVTools"]
 	path = dep/BSVTools
 	url = https://github.com/timksf/BSVTools.git
-[submodule "hdl/dep/BlueLib"]
+[submodule "dep/BlueLib"]
 	path = dep/BlueLib
 	url = https://github.com/timksf/BlueLib.git
-[submodule "hdl/dep/BlueAXI"]
+[submodule "dep/BlueAXI"]
 	path = dep/BlueAXI
 	url = https://github.com/timksf/BlueAXI.git
 [submodule "dep/bluexlnx"]

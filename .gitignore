@@ -1,13 +1,20 @@
 .direnv/
+.vscode/
+
+# Build outputs
 *build/
-.vscode
+hdl/.deps
+hdl__/
+*_out
+*_outv
 *outv
+
+# Simulation/generated artifacts
 *.sched
 *.vcd
 *.o
 *.so
-*_out
-*_outv
-hdl/src/rtl/lib
-hdl/src/rtl/testing
-__pycache__
+__pycache__/
+hdl/test/__pycache__/
+hdl/src/rtl/lib/
+hdl/src/rtl/testing/

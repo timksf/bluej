@@ -10,9 +10,7 @@ TEST_DIR=$(CURDIR)/test
 
 # Initialize
 -include .bsv_tools
-ifndef BSV_TOOLS
-$(error BSV_TOOLS is not set (Check .bsv_tools or specify it through the command line))
-endif
+BSV_TOOLS ?= $(CURDIR)/../dep/BSVTools
 VIVADO_ADD_PARAMS := ''
 CONSTRAINT_FILES := ''
 EXTRA_BSV_LIBS:=../dep/bluexlnx/src
@@ -76,6 +74,25 @@ VERILOG_INC:=$(CURDIR)/src/rtl/lib:$(CURDIR)/src/rtl/lib/unisim
 PART=xcku3p-ffvb676-2-e
 CONSTRAINTS=$(CURDIR)/src/bluej_simple.xdc
 SCRIPT=$(CURDIR)/src/synth.tcl
+
+# Public smoke/default FPGA flows
+SMOKE_TESTS ?= TestTAP TestSystemAPI TestBus
+FPGA_TOP_MODULE ?= mkFPGATestSimpleTop
+FPGA_MAIN_MODULE ?= FPGATop
+
+.PHONY: smoke fpga-verilog fpga-vivado
+smoke:
+	@$(MAKE) directories
+	@set -e; for test in $(SMOKE_TESTS); do \
+		echo "==> RUN_TEST=$$test"; \
+		$(MAKE) RUN_TEST=$$test sim; \
+	done
+
+fpga-verilog:
+	$(MAKE) SIM_TYPE=VERILOG TOP_MODULE=$(FPGA_TOP_MODULE) MAIN_MODULE=$(FPGA_MAIN_MODULE) directories compile_top
+
+fpga-vivado:
+	$(MAKE) SIM_TYPE=VERILOG TOP_MODULE=$(FPGA_TOP_MODULE) MAIN_MODULE=$(FPGA_MAIN_MODULE) directories vivado_tcl
 
 # Do not change: Load libraries such as BlueAXI or BlueLib
 ifneq ("$(wildcard $(CURDIR)/libraries/*/*.mk)", "")

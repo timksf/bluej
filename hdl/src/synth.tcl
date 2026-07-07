@@ -1,4 +1,6 @@
 # synth
+set script_dir [file dirname [file normalize [info script]]]
+read_xdc [file join $script_dir bluej_simple.xdc]
 synth_design -top mkFPGATestSimpleTop
 puts "Finished synth_design"
 
