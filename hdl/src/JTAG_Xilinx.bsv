@@ -10,7 +10,7 @@ import JTAG_Types :: *;
 import JTAG_TAP :: *;
 import BUFGCE :: *;
 
-//these are the same for 7-series and ultrascale (though some devices have larger IRs)
+// These are the same for 7-series and UltraScale, though some devices have larger IRs.
 Bit#(6) c_INSTR_USER1   = 6'b000010;
 Bit#(6) c_INSTR_USER2   = 6'b000011;
 Bit#(6) c_INSTR_USER3   = 6'b100010;
@@ -20,7 +20,7 @@ Bit#(6) c_INSTR_IDCODE  = 6'b001001;
 Bit#(6) c_INSTR_NOOP    = 6'b010100;
 Bit#(6) c_INSTR_BYPASS  = 6'b111111;
 
-Bit#(32) c_BSCAN2JTAG_IDCODE = 32'h04900601;
+Bit#(32) cfg_bscan2jtag_idcode = 32'h04900601;
 
 interface BSCAN2JTAG_ifc;
 
@@ -36,39 +36,45 @@ interface BSCAN2JTAG_ifc;
 
 endinterface
 
-//this is only useful for situations in which tck is not source from BSCANE2
-module mkBSCANE2_BlueJ_#(BSCANE2_Config cfg, Clock tck_inv, Vector#(n, ReadOnly#(Bit#(1))) tdo_up)(JTAG_TAP_Controller_ifc#(1));
+// Useful when TCK is not sourced from BSCANE2.
+module mkBSCANE2_BlueJ_#(
+    BSCANE2_Config cfg,
+    Clock tck_inv,
+    Vector#(n, ReadOnly#(Bit#(1))) tdo_up
+)(JTAG_TAP_Controller_ifc#(1));
 
-    BSCANE2_ifc _int <- mkBSCANE2(cfg);
-    //bscan.tck and tck are the same clocks, just not for bsc
-    let tdo_bscane2 <- mkNullCrossingWire(_int.bscan_tck, tdo_up[0]);
+    BSCANE2_ifc i_bscane2 <- mkBSCANE2(cfg);
 
-    rule fwd_tdo;
-        _int.tdo(tdo_bscane2);
+    // bscan.tck and tck are the same clocks, just not for BSC.
+    let tdo_bscane2 <- mkNullCrossingWire(i_bscane2.bscan_tck, tdo_up[0]);
+
+    rule r_forward_tdo;
+        i_bscane2.tdo(tdo_bscane2);
     endrule
 
-    //tms and tdi are supplied via simulation model, so no external inputs to this IP
+    // TMS and TDI are supplied by the simulation model, so this IP has no external inputs.
     method tms(t) = noAction;
     method tdi(t) = noAction;
-    //similarly, this IP does not provide a TDO output
+
+    // Similarly, this IP does not provide a TDO output.
     method tdo = 0;
 
-    method int_tdi = _int.tdi;
+    method int_tdi = i_bscane2.tdi;
 
     interface JTAG_Ctrl_Up_ifc tap_ctrl;
-        method update = _int.update;
-        method capture = _int.capture;
-        method shift = _int.shift;
-        
-        interface select = vec(_int.sel);
+        method update  = i_bscane2.update;
+        method capture = i_bscane2.capture;
+        method shift   = i_bscane2.shift;
+
+        interface select = vec(i_bscane2.sel);
     endinterface
 
 endmodule
 
 module connect_bscane2_to_bluej#(BSCANE2_ifc bscane2, JTAG_Ctrl_Dn_ifc jtag_target)(Empty);
 
-    //this rule is in the tck domain
-    rule rjctrl;
+    // This rule is in the TCK domain.
+    rule r_forward_jtag_ctrl;
         jtag_target.update(bscane2.update());
         jtag_target.capture(bscane2.capture());
         jtag_target.shift(bscane2.shift());
@@ -88,98 +94,98 @@ module mkBSCAN2JTAG#(BSCANE2_ifc bscan)(BSCAN2JTAG_ifc);
         and either TDI-only bits or TMS/TDI pairs for the tunneled JTAG port.
     */
 
-    Reg#(Bit#(8)) tap_cnt <- mkReg(0);
-    Reg#(Bool) tap_cnt_ok <- mkReg(False);
-    Reg#(Bit#(8)) bit_cnt <- mkReg(0);
-    Reg#(Bool) mode_reg <- mkReg(False);
-    Reg#(Bit#(1)) tms_reg <- mkReg(0);
-    Reg#(Bool) tms_ok <- mkReg(False);
+    Reg#(Bit#(8))  rg_tap_cnt     <- mkReg(0);
+    Reg#(Bool)     rg_tap_cnt_ok  <- mkReg(False);
+    Reg#(Bit#(8))  rg_bit_cnt     <- mkReg(0);
+    Reg#(Bool)     rg_mode        <- mkReg(False);
+    Reg#(Bit#(1))  rg_tms         <- mkReg(0);
+    Reg#(Bool)     rg_tms_ok      <- mkReg(False);
 
-    Reg#(Bit#(5)) id_cnt <- mkReg(0);
-    Reg#(Bit#(1)) id_tdo <- mkReg(0);
+    Reg#(Bit#(5))  rg_id_cnt      <- mkReg(0);
+    Reg#(Bit#(1))  rg_id_tdo      <- mkReg(0);
 
-    Wire#(Bit#(1)) jtag_tdo <- mkDWire(0);
+    Wire#(Bit#(1)) w_jtag_tdo     <- mkDWire(0);
 
-    let tck_buf <- mkBUFGCE(defaultValue, tms_ok);
-    MakeResetIfc inner_rst <- mkReset(0, True, tck_buf.clk_out);
-    let tck_inv <- mkClockInverter(clocked_by tck_buf.clk_out, reset_by inner_rst.new_rst);
-    let tdo_rst_inv <- mkAsyncReset(0, inner_rst.new_rst, tck_inv.slowClock);
+    let i_tck_buf <- mkBUFGCE(defaultValue, rg_tms_ok);
+    MakeResetIfc i_inner_rst <- mkReset(0, True, i_tck_buf.clk_out);
+    let i_tck_inv <- mkClockInverter(clocked_by i_tck_buf.clk_out, reset_by i_inner_rst.new_rst);
+    let i_tdo_rst_inv <- mkAsyncReset(0, i_inner_rst.new_rst, i_tck_inv.slowClock);
 
-    ReadOnly#(Bit#(1)) tms_crossed <- mkNullCrossingWire(tck_buf.clk_out, tms_reg);
+    ReadOnly#(Bit#(1)) ro_tms_crossed <- mkNullCrossingWire(i_tck_buf.clk_out, rg_tms);
 
-    Bool id_en = (bscan.capture() || bscan.shift()) && bscan.sel() && !tap_cnt_ok;
-    Bit#(1) bscan_tdo = id_en ? id_tdo : jtag_tdo;
+    Bool id_en = (bscan.capture() || bscan.shift()) && bscan.sel() && !rg_tap_cnt_ok;
+    Bit#(1) bscan_tdo = id_en ? rg_id_tdo : w_jtag_tdo;
 
-    rule drive_bscan_tdo;
+    rule r_drive_bscan_tdo;
         bscan.tdo(bscan_tdo);
     endrule
 
-    rule assert_inner_reset if(bscan.reset());
-        inner_rst.assertReset();
+    rule r_assert_inner_reset if(bscan.reset());
+        i_inner_rst.assertReset();
     endrule
 
-    rule tunnel_ctrl;
+    rule r_tunnel_ctrl;
         if(bscan.reset()) begin
-            tap_cnt_ok <= False;
+            rg_tap_cnt_ok <= False;
         end
         else if(bscan.update() && bscan.sel()) begin
-            tap_cnt_ok <= True;
+            rg_tap_cnt_ok <= True;
         end
 
         if(!id_en) begin
-            id_tdo <= 0;
-            id_cnt <= 0;
+            rg_id_tdo <= 0;
+            rg_id_cnt <= 0;
         end
         else begin
-            id_tdo <= c_BSCAN2JTAG_IDCODE[id_cnt];
-            id_cnt <= id_cnt + 1;
+            rg_id_tdo <= cfg_bscan2jtag_idcode[rg_id_cnt];
+            rg_id_cnt <= rg_id_cnt + 1;
         end
 
         if(bscan.capture() || bscan.update()) begin
-            bit_cnt <= 0;
-            mode_reg <= False;
-            tms_reg <= 0;
-            tms_ok <= False;
+            rg_bit_cnt <= 0;
+            rg_mode <= False;
+            rg_tms <= 0;
+            rg_tms_ok <= False;
         end
         else if(bscan.shift() && bscan.sel()) begin
-            if(!tap_cnt_ok) begin
-                tap_cnt <= { bscan.tdi(), tap_cnt[7:1] };
+            if(!rg_tap_cnt_ok) begin
+                rg_tap_cnt <= { bscan.tdi(), rg_tap_cnt[7:1] };
             end
             else if(bscan.tms() == 1) begin
-                bit_cnt <= 0;
-                mode_reg <= False;
-                tms_reg <= 0;
-                tms_ok <= False;
+                rg_bit_cnt <= 0;
+                rg_mode <= False;
+                rg_tms <= 0;
+                rg_tms_ok <= False;
             end
-            else if(bit_cnt < tap_cnt) begin
-                bit_cnt <= bit_cnt + 1;
+            else if(rg_bit_cnt < rg_tap_cnt) begin
+                rg_bit_cnt <= rg_bit_cnt + 1;
             end
-            else if(bit_cnt == tap_cnt) begin
-                bit_cnt <= bit_cnt + 1;
+            else if(rg_bit_cnt == rg_tap_cnt) begin
+                rg_bit_cnt <= rg_bit_cnt + 1;
                 if(bscan.tdi() == 1) begin
-                    mode_reg <= True;
-                    tms_reg <= 0;
-                    tms_ok <= True;
+                    rg_mode <= True;
+                    rg_tms <= 0;
+                    rg_tms_ok <= True;
                 end
             end
-            else if(!mode_reg) begin
-                if(!tms_ok) begin
-                    tms_reg <= bscan.tdi();
+            else if(!rg_mode) begin
+                if(!rg_tms_ok) begin
+                    rg_tms <= bscan.tdi();
                 end
-                tms_ok <= !tms_ok;
+                rg_tms_ok <= !rg_tms_ok;
             end
         end
     endrule
 
-    method tms = tms_crossed;
+    method tms = ro_tms_crossed;
     method tdi = bscan.tdi;
-    method tdo = jtag_tdo._write;
+    method tdo = w_jtag_tdo._write;
 
-    interface tck = tck_buf.clk_out;
-    interface rst = inner_rst.new_rst;
+    interface tck = i_tck_buf.clk_out;
+    interface rst = i_inner_rst.new_rst;
 
-    interface tdo_clk = tck_inv.slowClock;
-    interface tdo_rst = tdo_rst_inv;
+    interface tdo_clk = i_tck_inv.slowClock;
+    interface tdo_rst = i_tdo_rst_inv;
 
 endmodule
 
