@@ -29,6 +29,7 @@ typedef enum {
 
 (* always_ready *)
 interface JTAG_FSM_Ctrl_ifc;
+    method Bool test_logic_reset();
     method Bool update_dr();
     method Bool shift_dr();
     method Bool capture_dr();
@@ -97,6 +98,7 @@ module mkJTAG_TAP_FSM(JTAP_TAP_FSM_ifc);
     method tms = bwTMS._write;
 
     interface JTAG_FSM_Ctrl_ifc ctrl;
+        method test_logic_reset = rState == TestLogicReset;
         method update_dr    = rState == UpdateDR;
         method shift_dr     = rState == ShiftDR;
         method capture_dr   = rState == CaptureDR;
@@ -156,7 +158,7 @@ module mkJTAG_TAP_Controller#(
         int_tdo = ir_tdo_crossed;
     else if(ir_crossed == tap_cfg.instr_idcode)
         int_tdo = idc_tdo_crossed;
-    else if(pack(sel_crossed) == 0 && ir_crossed == pack(instr_bypass))
+    else if(pack(sel_crossed) == 0)
         int_tdo = byp_tdo_crossed;
     else
         for(Integer i = 0; i < valueof(n); i = i + 1)
@@ -164,7 +166,7 @@ module mkJTAG_TAP_Controller#(
                 int_tdo = tdos_crossed[i];
     
     Bool id_sel  = pack(vSelect) == 0 && jtagIR.reg_o() == tap_cfg.instr_idcode;
-    Bool byp_sel = pack(vSelect) == 0 && jtagIR.reg_o() == pack(instr_bypass);
+    Bool byp_sel = pack(vSelect) == 0 && jtagIR.reg_o() != tap_cfg.instr_idcode;
 
     //the IR is the only JTAGReg connected to the IR control lines of the TAP FSM
     mkConnection(jtagIR.ctrl.capture, tap_fsm.ctrl.capture_ir);
@@ -190,6 +192,10 @@ module mkJTAG_TAP_Controller#(
 
     rule rir;
         jtagIR.ctrl.sel(True);
+    endrule
+
+    rule r_reset_ir if(tap_fsm.ctrl.test_logic_reset);
+        jtagIR.load(ir_rst);
     endrule
 
     if(tap_cfg.debug)

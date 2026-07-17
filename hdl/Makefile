@@ -13,7 +13,7 @@ TEST_DIR=$(CURDIR)/test
 BSV_TOOLS ?= $(CURDIR)/../dep/BSVTools
 VIVADO_ADD_PARAMS := ''
 CONSTRAINT_FILES := ''
-EXTRA_BSV_LIBS:=../dep/bluexlnx/src
+EXTRA_BSV_LIBS:=../dep/bluexlnx/src ../dep/BlueLib/src ../dep/BlueAXI/src ../dep/bluecsr/src
 EXTRA_LIBRARIES:=
 RUN_FLAGS:=
 

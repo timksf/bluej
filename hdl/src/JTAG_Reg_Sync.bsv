@@ -59,6 +59,7 @@ module mkJTAG_Reg_SyncR#(t reg_i, JTAG_Reg_Reset#(t) r, Clock sysclk, Reset sysr
 
     method reg_o = rg_d_out;
     method wr_o  = rg_wr_o_out;
+    method load(value) = jreg_int.load(value);
 
     method tdo   = jreg_int.tdo;
     method tdi   = jreg_int.tdi;

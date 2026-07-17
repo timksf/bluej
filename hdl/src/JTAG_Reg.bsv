@@ -15,6 +15,7 @@ interface JTAG_Reg_ifc#(type t);
     //device-facing, will be used by whoever instantiates a jtag register
     method t            reg_o();
     method Bool         wr_o();
+    method Action       load(t value);
 
     method Bit#(1)     tdo();
     method Action      tdi(Bit#(1) t);
@@ -45,6 +46,7 @@ module mkJTAGRegR#(t reg_i, JTAG_Reg_Reset#(t) r)(JTAG_Reg_ifc#(t))
     Wire#(Bool)      bwShift     <- mkBypassWire;
     Wire#(Bool)      bwUpdate    <- mkBypassWire;
     Wire#(Bool)      bwSelect    <- mkBypassWire;
+    Wire#(Maybe#(Bit#(w))) bwLoad <- mkDWire(tagged Invalid);
 
     Reg#(Bool)       rWR         <- mkDReg(False);
 
@@ -62,13 +64,18 @@ module mkJTAGRegR#(t reg_i, JTAG_Reg_Reset#(t) r)(JTAG_Reg_ifc#(t))
     endrule
 
     (* mutually_exclusive ="rshift, rupdate" *)
-    rule rupdate if(bwUpdate && bwSelect);
+    rule rupdate if(bwUpdate && bwSelect && !isValid(bwLoad));
         rHR <= rSR;
         rWR <= True;
     endrule
 
+    rule rload if(bwLoad matches tagged Valid .value);
+        rHR <= value;
+    endrule
+
     method reg_o = unpack(rHR);
     method wr_o  = rWR; //indicate update after shift
+    method load(value) = bwLoad._write(tagged Valid pack(value));
     method tdi   = bwTDI._write;
     method tdo   = rSR[0];
 

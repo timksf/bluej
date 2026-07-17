@@ -15,6 +15,8 @@ Implemented:
 - Raw, read-only, write-only, read/write, pulse, and synchronized JTAG register helpers.
 - A small JTAG system builder for collecting endpoints and deriving the TAP instruction map.
 - A simple JTAG bus adapter with CDC, used by the OpenOCD simulation smoke test.
+- A RISC-V Debug Specification 0.13.2 JTAG DTM, AXI4-Lite DMI bridge, and
+  minimal single-hart RV32 Debug Module with System Bus Access.
 - BSCANE2 integration for Xilinx FPGA designs.
 - BSCANE2-to-JTAG tunneling for exposing a nested custom TAP through a USER data register.
 - Bluesim, Verilog simulation, and OpenOCD remote-bitbang test infrastructure.
@@ -64,6 +66,22 @@ Run the OpenOCD simulation testbench:
 make -C hdl RUN_TEST=TestOOCD sim
 python3 hdl/test/bluej_openocd.py --expect-idcode 0x474f --expect-data 0x34fad707
 ```
+
+Run the RISC-V Debug Transport Module tests:
+
+```bash
+make -C hdl RUN_TEST=TestRISCVDTM sim
+make -C hdl RUN_TEST=TestRISCVDMIAXI4Lite sim
+make -C hdl RUN_TEST=TestRISCVJTAGDTM sim
+make -C hdl RUN_TEST=TestRISCVDM sim
+make -C hdl RUN_TEST=TestBlueCSRUnmapped sim
+```
+
+The implementation is split into a TAP-independent DTM core, an independent
+DMI-to-AXI4-Lite bridge, a minimal single-hart Debug Module with 32-bit System
+Bus Access, and a BlueJ 5-bit JTAG wrapper. See
+[`docs/riscv_dtm.md`](docs/riscv_dtm.md) for the interfaces, register map,
+clock-domain crossing, and reset behavior.
 
 For Verilog simulation:
 
