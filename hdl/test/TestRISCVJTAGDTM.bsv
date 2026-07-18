@@ -14,7 +14,7 @@ import JTAG_System :: *;
 import JTAG_Types :: *;
 import ClockUtil :: *;
 import RISCV_DMI :: *;
-import RISCV_JTAG_DTM :: *;
+import RISCV_DTM :: *;
 
 typedef 7 TestABits;
 typedef 41 TestDMIWidth;
@@ -34,7 +34,7 @@ module mkRISCVJTAGDUT#(
     Reset tdo_rst,
     Clock axi_clk,
     Reset axi_rst
-)(JTAGSystem_ifc#(RISCVJTAGDTMDevice_ifc#(TestABits)));
+)(JTAGSystem_ifc#(RISCVDTMDevice_ifc#(TestABits)));
 
     JTAG_TAP_Meta_Config_t tap_meta = JTAG_TAP_Meta_Config_t {
         idcode_ver:  4'h1,
@@ -42,7 +42,7 @@ module mkRISCVJTAGDUT#(
         idcode_part: 16'h4567
     };
 
-    let system <- mkRISCVJTAGDTMAXI4Lite(tap_meta, tdo_clk, tdo_rst, axi_clk, axi_rst);
+    let system <- mkRISCVDTMAXI4Lite(tap_meta, tdo_clk, tdo_rst, axi_clk, axi_rst);
     return system;
 
 endmodule
@@ -87,6 +87,11 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
     Reg#(Bit#(32)) rg_idcode_out <- mkReg(0);
     Reg#(Bit#(TestDMIWidth)) rg_dmi_out <- mkReg(0);
     Reg#(Bit#(2)) rg_bypass_out <- mkReg(0);
+    Reg#(Bool) rg_hard_reset_seen <- mkReg(False);
+
+    rule r_latch_hard_reset if(dut.device_ifc.hard_reset);
+        rg_hard_reset_seen <= True;
+    endrule
 
     rule r_axi_read;
         let request <- i_axi_rd.request.get;
@@ -147,7 +152,7 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
             rg_dmi_out,
             1
         );
-        jtag_idle(w_tck, w_tms, w_tdi, 8);
+        jtag_idle(w_tck, w_tms, w_tdi, 12);
         jtag_dr_ret_del(
             w_tck,
             w_tms,
@@ -174,7 +179,7 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
             rg_dmi_out,
             1
         );
-        jtag_idle(w_tck, w_tms, w_tdi, 8);
+        jtag_idle(w_tck, w_tms, w_tdi, 12);
         jtag_dr_ret_del(
             w_tck,
             w_tms,
@@ -196,6 +201,16 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
         action
             if(rg_bypass_out != 2'b10) begin
                 $display("Reserved instruction did not select one-bit BYPASS: %02b", rg_bypass_out);
+                $finish(1);
+            end
+        endaction
+
+        jtag_ir(w_tck, w_tms, w_tdi, 5'h10);
+        jtag_dr_ret_del(w_tck, w_tms, w_tdi, w_tdo, 32'h00020000, rg_dtmcs_out, 1);
+        jtag_idle(w_tck, w_tms, w_tdi, 12);
+        action
+            if(!rg_hard_reset_seen) begin
+                $display("DTMHARDRESET did not cross to the AXI clock domain");
                 $finish(1);
             end
         endaction

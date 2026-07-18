@@ -13,7 +13,6 @@ import BSCANE2 :: *;
 import BUFGCE :: *;
 import RISCV_DMI :: *;
 import RISCV_DTM :: *;
-import RISCV_JTAG_DTM :: *;
 import RISCV_DM :: *;
 import RISCV_Debug :: *;
 
@@ -30,7 +29,6 @@ export BSCANE2 :: *;
 export BUFGCE :: *;
 export RISCV_DMI :: *;
 export RISCV_DTM :: *;
-export RISCV_JTAG_DTM :: *;
 export RISCV_DM :: *;
 export RISCV_Debug :: *;
 

@@ -70,16 +70,15 @@ python3 hdl/test/bluej_openocd.py --expect-idcode 0x474f --expect-data 0x34fad70
 Run the RISC-V Debug Transport Module tests:
 
 ```bash
-make -C hdl RUN_TEST=TestRISCVDTM sim
 make -C hdl RUN_TEST=TestRISCVDMIAXI4Lite sim
 make -C hdl RUN_TEST=TestRISCVJTAGDTM sim
 make -C hdl RUN_TEST=TestRISCVDM sim
 make -C hdl RUN_TEST=TestBlueCSRUnmapped sim
 ```
 
-The implementation is split into a TAP-independent DTM core, an independent
-DMI-to-AXI4-Lite bridge, a minimal single-hart Debug Module with 32-bit System
-Bus Access, and a BlueJ 5-bit JTAG wrapper. See
+The implementation uses a JTAG DTM with an independent DMI-to-AXI4-Lite
+bridge, a minimal single-hart Debug Module with 32-bit System Bus Access, and
+a BlueJ 5-bit TAP. See
 [`docs/riscv_dtm.md`](docs/riscv_dtm.md) for the interfaces, register map,
 clock-domain crossing, and reset behavior.
 

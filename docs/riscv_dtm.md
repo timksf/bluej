@@ -7,15 +7,13 @@ implementation as a source.
 
 ## Layers
 
-- `mkRISCVDTM` is independent of a TAP. It implements the DTMCS/DMI state,
-  sticky busy and error behavior, capture/update events, and a typed DMI
-  client interface.
+- `riscv_dtm` is a `JTAGSystem#(2, 5)` context module. It owns DTMCS/DMI
+  state, sticky busy and error behavior, native JTAG capture/update events,
+  and the DMI AXI4-Lite master interface.
 - `mkRISCVDMIAXI4Lite` is independent of JTAG. It converts DMI requests to a
   32-bit AXI4-Lite master interface.
-- `riscv_jtag_dtm` supplies the RISC-V 5-bit instruction map through the
-  BlueJ system builder and crosses DMI transactions between TCK and the AXI
-  clock with asynchronous FIFOs.
-- `mkRISCVJTAGDTMAXI4Lite` builds the generic pin-level TAP system. The same
+- `riscv_dtm_system` configures the standalone DTM TAP and
+  `mkRISCVDTMAXI4Lite` builds the generic pin-level system. The same
   module can sit behind `mkBSCAN2JTAG` when a nested TAP is required on a
   Xilinx BSCANE2 USER chain.
 - `mkRISCVDM` implements a minimal single-hart RV32 Debug Module. It exposes
@@ -35,21 +33,18 @@ The standard instruction assignments are fixed in the wrapper:
 
 The TAP uses a 5-bit IR and restores IDCODE after Test-Logic-Reset.
 
-## BlueCSR register definition
+A parent with the same `JTAGSystem#(2, 5)` context can instantiate
+`riscv_dtm` directly, provide its own TAP configuration, and call
+`build_jtag_system`. The current type-indexed collection cannot merge the DTM
+into a larger endpoint count; that would require a composable endpoint-bundle
+API.
 
-BlueCSR defines the authoritative DTM field storage and register metadata.
-A private 72-bit definition width covers the largest legal 32-bit DMI address
-configuration (`32 + 32 + 2 = 66` scan bits) while satisfying BlueCSR's
-byte-width requirement.
+## DTM state and DM BlueCSR fields
 
-- Backing offset `0`: DTMCS fields (`version`, `abits`, `dmistat`, `idle`,
-  `dmireset`, and `dmihardreset`).
-- Backing offset `9`: DMI fields (`op`, `data`, and `address`).
-
-These are internal BlueCSR definition offsets, not JTAG instruction values and
-not externally exposed memory addresses. The JTAG serializers capture the
-precomposed register state in one TCK edge; they do not wait for a CSR bus
-transaction.
+DTMCS and DMI are the two native JTAG registers. The generic JTAG register
+captures the current DTM value; its capture pulse supplies DMI's busy side
+effect, so no custom DMI scan-register implementation or private BlueCSR map
+is required.
 
 The DM register map also uses BlueCSR for field storage and metadata. Its
 offsets are the DMI word indices converted to byte addresses by the DMI AXI
@@ -57,8 +52,10 @@ bridge: `DATA0` at `0x010`, `DMCONTROL` at `0x040`, `DMSTATUS` at `0x044`,
 `ABSTRACTCS` at `0x058`, `COMMAND` at `0x05c`, `SBCS` at `0x0e0`,
 `SBADDRESS0` at `0x0e4`, `SBDATA0` at `0x0f0`, and `HALTSUM0` at `0x100`.
 BlueCSR is the live address decoder and its AXI4-Lite adapter is the DM's DMI
-slave. Register-level BlueCSR action handlers emit typed events for operations
-with DM side effects; there is no second DM address decoder. The map selects
+slave. `csr_reg_hu`, `csr_reg_ho`, and `csr_reg_w1c` keep the live field state
+inside BlueCSR. Register writes use the field's normal access semantics, then
+delayed triggers let DM rules inspect the updated fields and add side effects;
+there is no second DM address decoder. The map selects
 `CSR_OKAY` with zero read data for addresses outside the declared map, so
 unimplemented DMI registers read as zero and ignore writes as required by the
 debug specification. Every declared DM register has explicit read and write
@@ -99,7 +96,6 @@ that purpose.
 Run the focused simulations with:
 
 ```bash
-make -C hdl RUN_TEST=TestRISCVDTM sim
 make -C hdl RUN_TEST=TestRISCVDMIAXI4Lite sim
 make -C hdl RUN_TEST=TestRISCVJTAGDTM sim
 make -C hdl RUN_TEST=TestRISCVDM sim

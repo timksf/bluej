@@ -16,12 +16,36 @@ module [BlueCSRCtx_t#(8, 32)] unmapped_test_map(Empty);
 
 endmodule
 
+interface HUTestState_ifc;
+    method Bit#(32) value;
+    method Action update(Bit#(32) value);
+endinterface
+
+module [BlueCSRCtx_t#(8, 32)] hu_test_map(HUTestState_ifc);
+
+    Wire#(Maybe#(Bit#(32))) w_update <- mkDWire(tagged Invalid);
+    ReadOnly#(Bit#(32)) rg_value <- csr_reg_hu('h04, 0, 0, w_update, "VALUE", "Value", "Hardware-updatable test value.");
+
+    csr_regmap_def("huTest", "BlueCSR hardware-updatable field test");
+    csr_reg_def('h04, "VALUE", "Hardware-updatable test value");
+
+    method value = rg_value;
+    method Action update(Bit#(32) update_value);
+        action
+            w_update <= tagged Valid update_value;
+        endaction
+    endmethod
+
+endmodule
+
 module [Module] mkTestBlueCSRUnmapped(TestHandler);
 
     BlueCSRAccess_ifc#(8, 32, 0, Empty) i_default <-
         create_blue_csr(unmapped_test_map, False);
     BlueCSRAccess_ifc#(8, 32, 0, Empty) i_okay <-
         create_blue_csr_with_default_response(unmapped_test_map, False, CSR_OKAY);
+    BlueCSRAccess_ifc#(8, 32, 0, HUTestState_ifc) i_hu <-
+        create_blue_csr(hu_test_map, False);
 
     Reg#(Bool) rg_started <- mkReg(False);
 
@@ -58,6 +82,18 @@ module [Module] mkTestBlueCSRUnmapped(TestHandler);
         endaction
     endfunction
 
+    function Action issue_hu_write(Bit#(32) value, Bit#(4) strobe);
+        action
+            i_hu.external.request.put(BlueCSR_Req_t {
+                wr:    True,
+                addr:  'h04,
+                wdata: value,
+                wstrb: strobe,
+                prot:  CSR_SECURE
+            });
+        endaction
+    endfunction
+
     Stmt test = seq
         issue_request(i_default.external, False, 'h20);
         expect_response(i_default.external, 0, CSR_DECERR, "default unmapped read");
@@ -75,6 +111,24 @@ module [Module] mkTestBlueCSRUnmapped(TestHandler);
         expect_response(i_okay.external, 32'h12345678, CSR_OKAY, "mapped read");
         issue_request(i_okay.external, True, 'h04);
         expect_response(i_okay.external, 0, CSR_OKAY, "configured fallback write");
+
+        issue_hu_write(32'h11223344, 4'hf);
+        expect_response(i_hu.external, 0, CSR_OKAY, "hardware-updatable full write");
+        issue_request(i_hu.external, False, 'h04);
+        expect_response(i_hu.external, 32'h11223344, CSR_OKAY, "hardware-updatable full read");
+
+        issue_hu_write(32'haabbccdd, 4'b0101);
+        expect_response(i_hu.external, 0, CSR_OKAY, "hardware-updatable partial write");
+        issue_request(i_hu.external, False, 'h04);
+        expect_response(i_hu.external, 32'h11bb33dd, CSR_OKAY, "hardware-updatable partial read");
+
+        action
+            issue_hu_write(32'hdeadbeef, 4'hf);
+            i_hu.internal.update(32'hfeedface);
+        endaction
+        expect_response(i_hu.external, 0, CSR_OKAY, "hardware update and write");
+        issue_request(i_hu.external, False, 'h04);
+        expect_response(i_hu.external, 32'hfeedface, CSR_OKAY, "hardware update wins");
 
         $display("BlueCSR unmapped response test passed");
     endseq;
