@@ -13,3 +13,6 @@
 [submodule "dep/bluecsr"]
 	path = dep/bluecsr
 	url = https://github.com/timksf/bluecsr.git
+[submodule "examples/SCOoOTER"]
+	path = examples/SCOoOTER
+	url = https://github.com/esa-tu-darmstadt/SCOoOTER.git

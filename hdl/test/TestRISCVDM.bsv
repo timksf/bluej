@@ -14,7 +14,7 @@ import RISCV_DM :: *;
 
 module [Module] mkTestRISCVDM(TestHandler);
 
-    RISCVDM_ifc dut <- mkRISCVDM;
+    RISCVDM_ifc#(1) dut <- mkRISCVDM;
 
     AXI4_Lite_Master_Rd#(32, 32) i_dmi_rd <- mkAXI4_Lite_Master_Rd(2);
     AXI4_Lite_Master_Wr#(32, 32) i_dmi_wr <- mkAXI4_Lite_Master_Wr(2);
@@ -34,7 +34,7 @@ module [Module] mkTestRISCVDM(TestHandler);
     Reg#(Bit#(8)) rg_request_epoch <- mkReg(0);
 
     rule r_drive_hart_status;
-        dut.hart.status(DMHartStatus_t {
+        dut.harts[0].status(DMHartStatus_t {
             halted:      rg_hart_halted,
             running:     rg_hart_running,
             unavailable: rg_hart_unavailable
@@ -86,10 +86,10 @@ module [Module] mkTestRISCVDM(TestHandler);
             if(!dut.dmactive) begin
                 $display("dmactive did not assert");
             end
-            if(!dut.hart.halt_request) begin
+            if(!dut.harts[0].halt_request) begin
                 $display("halt request did not assert");
             end
-            if(!dut.dmactive || !dut.hart.halt_request) begin
+            if(!dut.dmactive || !dut.harts[0].halt_request) begin
                 rg_failed <= True;
             end
         endaction
@@ -135,7 +135,7 @@ module [Module] mkTestRISCVDM(TestHandler);
         dmi_write(32'h010, 32'hdeadbeef);
         dmi_write(32'h05c, 32'h00231005);
         action
-            let request <- dut.hart.registers.request.get;
+            let request <- dut.harts[0].registers.request.get;
             if(request.regno != 16'h1005 || !request.write || request.data != 32'hdeadbeef) begin
                 $display("abstract GPR write request mismatch: ", fshow(request));
                 rg_failed <= True;
@@ -143,7 +143,7 @@ module [Module] mkTestRISCVDM(TestHandler);
             rg_request_epoch <= request.epoch;
         endaction
         expect_dmi_read(32'h058, 32'h00001001, 32'h00001f0f);
-        dut.hart.registers.response.put(DMHartRegResponse_t {
+        dut.harts[0].registers.response.put(DMHartRegResponse_t {
             data:  32'ha5a5a5a5,
             error: 0,
             epoch: rg_request_epoch
@@ -155,12 +155,12 @@ module [Module] mkTestRISCVDM(TestHandler);
         // Read one GPR and return its value through DATA0.
         dmi_write(32'h05c, 32'h00221006);
         action
-            let request <- dut.hart.registers.request.get;
+            let request <- dut.harts[0].registers.request.get;
             if(request.regno != 16'h1006 || request.write) begin
                 $display("abstract GPR read request mismatch: ", fshow(request));
                 rg_failed <= True;
             end
-            dut.hart.registers.response.put(DMHartRegResponse_t {
+            dut.harts[0].registers.response.put(DMHartRegResponse_t {
                 data:  32'hcafebabe,
                 error: 0,
                 epoch: request.epoch
@@ -172,8 +172,8 @@ module [Module] mkTestRISCVDM(TestHandler);
         // Narrow register reads are legal and return the requested low bits.
         dmi_write(32'h05c, 32'h00021006);
         action
-            let request <- dut.hart.registers.request.get;
-            dut.hart.registers.response.put(DMHartRegResponse_t {
+            let request <- dut.harts[0].registers.request.get;
+            dut.harts[0].registers.response.put(DMHartRegResponse_t {
                 data:  32'h123456ab,
                 error: 0,
                 epoch: request.epoch
@@ -184,7 +184,7 @@ module [Module] mkTestRISCVDM(TestHandler);
         // Resume a halted hart and observe resume acknowledgement.
         dmi_write(32'h040, 32'h40000001);
         action
-            if(!dut.hart.resume_request) begin
+            if(!dut.harts[0].resume_request) begin
                 $display("resume request did not assert");
                 rg_failed <= True;
             end
@@ -193,7 +193,7 @@ module [Module] mkTestRISCVDM(TestHandler);
         endaction
         delay(2);
         action
-            if(dut.hart.resume_request) begin
+            if(dut.harts[0].resume_request) begin
                 $display("resume request did not clear after the hart ran");
                 rg_failed <= True;
             end
@@ -231,7 +231,38 @@ module [Module] mkTestRISCVDM(TestHandler);
         expect_dmi_read(32'h0f0, 32'h55667788, 32'hffffffff);
         expect_dmi_read(32'h0e4, 32'h00003004, 32'hffffffff);
 
+        // Byte writes are aligned onto the 32-bit AXI bus with byte strobes.
+        dmi_write(32'h0e0, 32'h00010000);
+        dmi_write(32'h0e4, 32'h00003103);
+        dmi_write(32'h0f0, 32'h000000a5);
+        action
+            let request <- i_system_wr.request.get;
+            if(request.addr != 32'h00003100 || request.data != 32'ha5000000 || request.strb != 4'h8) begin
+                $display("SBA byte write request mismatch: ", fshow(request));
+                rg_failed <= True;
+            end
+            i_system_wr.response.put(AXI4_Lite_Write_Rs_Pkg { resp: OKAY });
+        endaction
+        expect_dmi_read(32'h0e4, 32'h00003104, 32'hffffffff);
+
+        // Halfword reads select the requested lane and return it in SBDATA0[15:0].
+        dmi_write(32'h0e0, 32'h00120000);
+        dmi_write(32'h0e4, 32'h00003202);
+        action
+            let request <- i_system_rd.request.get;
+            if(request.addr != 32'h00003200) begin
+                $display("SBA halfword read request mismatch: ", fshow(request));
+                rg_failed <= True;
+            end
+            i_system_rd.response.put(AXI4_Lite_Read_Rs_Pkg {
+                data: 32'ha1b2c3d4,
+                resp: OKAY
+            });
+        endaction
+        expect_dmi_read(32'h0f0, 32'h0000a1b2, 32'hffffffff);
+
         // Alignment errors are sticky and can be cleared through SBCS.
+        dmi_write(32'h0e0, 32'h00150000);
         dmi_write(32'h0e4, 32'h00003002);
         expect_dmi_read(32'h0e0, 32'h00003000, 32'h00007000);
         dmi_write(32'h0e0, 32'h00057000);

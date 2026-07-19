@@ -16,7 +16,7 @@ Implemented:
 - A small JTAG system builder for collecting endpoints and deriving the TAP instruction map.
 - A simple JTAG bus adapter with CDC, used by the OpenOCD simulation smoke test.
 - A RISC-V Debug Specification 0.13.2 JTAG DTM, AXI4-Lite DMI bridge, and
-  minimal single-hart RV32 Debug Module with System Bus Access.
+  parameterized multi-hart RV32 Debug Module with System Bus Access.
 - BSCANE2 integration for Xilinx FPGA designs.
 - BSCANE2-to-JTAG tunneling for exposing a nested custom TAP through a USER data register.
 - Bluesim, Verilog simulation, and OpenOCD remote-bitbang test infrastructure.
@@ -73,14 +73,81 @@ Run the RISC-V Debug Transport Module tests:
 make -C hdl RUN_TEST=TestRISCVDMIAXI4Lite sim
 make -C hdl RUN_TEST=TestRISCVJTAGDTM sim
 make -C hdl RUN_TEST=TestRISCVDM sim
+make -C hdl RUN_TEST=TestRISCVDMMulti sim
 make -C hdl RUN_TEST=TestBlueCSRUnmapped sim
 ```
 
 The implementation uses a JTAG DTM with an independent DMI-to-AXI4-Lite
-bridge, a minimal single-hart Debug Module with 32-bit System Bus Access, and
+bridge, a parameterized Debug Module with 8/16/32-bit System Bus Access, and
 a BlueJ 5-bit TAP. See
 [`docs/riscv_dtm.md`](docs/riscv_dtm.md) for the interfaces, register map,
-clock-domain crossing, and reset behavior.
+clock-domain crossing, and reset behavior. The changes made inside SCOoOTER,
+and the reason for each pipeline and architectural-state change, are described
+in [`docs/scoooter_debug_hardware.md`](docs/scoooter_debug_hardware.md).
+
+Run SCOoOTER with the Debug Module and OpenOCD remote-bitbang transport in
+two terminals:
+
+```bash
+make -C hdl RUN_TEST=TestScoooterOOCD sim
+openocd -f hdl/test/scoooter.cfg
+```
+
+The testbench maps a read-only boot ROM at `0x00000000` and a writable,
+executable 4 KiB RAM at `0x80000000`. The boot ROM parks each hart in a
+`jal x0, 0` loop until a debugger halts it. OpenOCD exposes GDB on port 3333.
+
+Build and load the example RV32 ELF, then exercise single-step and a GDB
+software breakpoint:
+
+```bash
+make -C hdl scoooter-gdb-elf
+gdb-multiarch hdl/build/scoooter-gdb.elf
+```
+
+Inside GDB:
+
+```gdb
+target extended-remote localhost:3333
+monitor halt
+load
+set $pc = _start
+stepi
+break breakpoint_site
+continue
+```
+
+The supplied batch regression performs the same workflow and checks the PC
+and `t0` after every stop:
+
+```bash
+gdb-multiarch -q -batch -x hdl/test/scoooter_gdb.gdb \
+    hdl/build/scoooter-gdb.elf
+```
+
+`SCOOOTER_CLANG` and `SCOOOTER_LLD` override the compiler and linker used by
+the `scoooter-gdb-elf` target.
+For a two-hart SCOoOTER configuration, use matching counts on both sides:
+
+```bash
+make -C hdl RUN_TEST=TestScoooterOOCD SCOOOTER_NUM_THREADS=2 sim
+openocd -c "set SCOOOTER_HART_COUNT 2" -f hdl/test/scoooter.cfg
+```
+
+Hart indices are flattened as `cpu * NUM_THREADS + thread`. Debug support now
+includes independent halt/resume, GPR, PC, `dcsr`, implemented machine CSR
+access, 8/16/32-bit SBA, precise DCSR single-step, and software breakpoints in
+writable RAM through `ebreak` debug entry. Trigger-based hardware breakpoints,
+non-DM reset wiring, and a Program Buffer are not implemented yet.
+
+SCOoOTER debug support is enabled by default. Define
+`SCOOOTER_DISABLE_DEBUG` to remove its debug ports, halt/step state, pipeline
+controls, and direct architectural-register access. The following regression
+builds and runs that configuration:
+
+```bash
+make -C hdl RUN_TEST=TestScoooterNoDebug sim
+```
 
 For Verilog simulation:
 
