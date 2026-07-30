@@ -11,13 +11,13 @@ import PLIC :: *;
 import Types :: *;
 
 interface PlicAPB_ifc;
-    (* always_enabled *) method Action interrupt_sources(Vector#(4, Bool) value);
+    (* always_enabled *) method Action interrupt_sources(Vector#(16, Bool) value);
     (* always_ready *) method Vector#(NUM_HARTS, Bool) external_interrupts;
     interface ApbSlaveFabric_ifc#(32, 32, 0) s_apb;
 endinterface
 
 module mkPlicAPB(PlicAPB_ifc);
-    PLICIFC#(4, 8) i_plic <- mkPLIC;
+    PLICIFC#(16, 8) i_plic <- mkPLIC;
     ApbSlave_ifc#(32, 32, 0) i_apb <- mkApbSlave(True);
     Reg#(Bool) rg_pending <- mkReg(False);
     Reg#(Bool) rg_write <- mkReg(False);

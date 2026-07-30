@@ -60,11 +60,11 @@ module [Module] mkScoooterDevices(ScoooterDevices_ifc);
     endinterface
 endmodule
 
-module [IRQMapCtx_t#(4)] scoooter_irq_map#(ScoooterApbDevices_ifc devices)(Empty);
+module [IRQMapCtx_t#(16)] scoooter_irq_map#(ScoooterApbDevices_ifc devices)(Empty);
     irq_map_def("SCOoOTER_IRQS");
 
-    irq_map_source(0, "GPIO IRQ",   vec(devices.gpio_irq));
-    irq_map_source(2, "WDG IRQ",    vec(devices.wdg_irq));
+    irq_map_source(0,  "GPIO IRQ",   vec(devices.gpio_irq));
+    irq_map_source(12, "WDG IRQ",    vec(devices.wdg_irq));
 endmodule
 
 module [AddrMapCtx_t#(32, ApbSlaveFabric_ifc#(32, 32, 0))] peripheral_addr_map#(ScoooterApbDevices_ifc i_devices)(Empty);
@@ -98,13 +98,10 @@ endinterface
 module [Module] mkScoooterBus(ScoooterBus_ifc);
     ScoooterDevices_ifc i_devices <- mkScoooterDevices;
 
-    ApbAddrMap_ifc#(4, 32, 32, 0, Empty)
-        i_apb_map <- create_apb_addr_map(peripheral_addr_map(i_devices.apb));
+    ApbAddrMap_ifc#(4, 32, 32, 0, Empty)    i_apb_map <- create_apb_addr_map(peripheral_addr_map(i_devices.apb));
+    AhbAddrMap_ifc#(3, 32, 32, Empty)       i_ahb_map <- create_ahb_addr_map(system_addr_map(i_devices.ahb));
 
-    AhbAddrMap_ifc#(3, 32, 32, Empty)
-        i_ahb_map <- create_ahb_addr_map(system_addr_map(i_devices.ahb));
-
-    IRQMap_ifc#(4, Empty) i_irq_map <- create_irq_map(scoooter_irq_map(i_devices.apb));
+    IRQMap_ifc#(16, Empty) i_irq_map <- create_irq_map(scoooter_irq_map(i_devices.apb));
 
     mkConnection(i_devices.ahb.apb_bridge.apb, i_apb_map.slave);
 

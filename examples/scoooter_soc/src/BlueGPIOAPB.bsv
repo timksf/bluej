@@ -1,7 +1,7 @@
 package BlueGPIOAPB;
 
 import BlueCSR :: *;
-import BlueCSRGPIO :: *;
+import BlueGPIO :: *;
 import BlueFabric :: *;
 
 interface BlueGPIOAPB_ifc#(numeric type n);
@@ -13,13 +13,13 @@ interface BlueGPIOAPB_ifc#(numeric type n);
 endinterface
 
 module [Module] mkBlueGPIOAPB(BlueGPIOAPB_ifc#(n)) provisos(Add#(n, unused, 32));
-    BlueCSRGPIO_ifc#(n, 32) i_gpio <- mkBlueCSRGPIO;
-    BlueCSR_APB_ifc#(32, 32, 0, 1) i_apb <- mkBlueCSRAPBAdapter(i_gpio.csr, True);
+    BlueGPIO_ifc#(n, 32) i_gpio <- mkBlueGPIO;
+    BlueCSR_APB_ifc#(32, 32, 0, n) i_apb <- mkBlueCSRAPBAdapter(i_gpio.csr, True);
 
-    method input_value = i_gpio.input_value;
-    method output_value = i_gpio.output_value;
-    method output_enable = i_gpio.output_enable;
-    method interrupt = i_apb.irqs[0];
+    method input_value = i_gpio.pins.input_value;
+    method output_value = i_gpio.pins.output_value;
+    method output_enable = i_gpio.pins.output_enable;
+    method interrupt = unpack(|i_gpio.irq.interrupts);
     interface s_apb = i_apb.s_apb;
 endmodule
 
