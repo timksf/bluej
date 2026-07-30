@@ -7,8 +7,6 @@ import GetPut :: *;
 import ClientServer :: *;
 import ModuleContext :: *;
 
-import AXI4_Lite_Master :: *;
-
 import JTAG_Reg :: *;
 import JTAG_System :: *;
 import JTAG_Types :: *;
@@ -16,13 +14,12 @@ import RISCV_DMI :: *;
 
 interface RISCVDTMDevice_ifc#(numeric type abits);
     method Bool hard_reset;
-    interface AXI4_Lite_Master_Rd_Fab#(32, 32) m_axi_rd;
-    interface AXI4_Lite_Master_Wr_Fab#(32, 32) m_axi_wr;
+    interface Client#(DMI_Request_t#(abits), DMI_Response_t#(abits)) dmi;
 endinterface
 
-module [JTAGSystem#(2, 5)] riscv_dtm#(
-    Clock axi_clk,
-    Reset axi_rst
+module [JTAGSystem#(n, 5)] riscv_dtm#(
+    Clock dmi_clk,
+    Reset dmi_rst
 )(RISCVDTMDevice_ifc#(abits))
     provisos(
         Add#(7, abits_extra, abits),
@@ -69,11 +66,9 @@ module [JTAGSystem#(2, 5)] riscv_dtm#(
     JTAG_Reg_ifc#(DMI_Scan_t#(abits)) i_dmi_jtag <- mkJTAGReg(dmi_value);
     JTAGRegAccess_ifc#(DMI_Scan_t#(abits)) i_dmi_access <- jtag_endpoint(i_dmi_jtag, 5'h11);
 
-    SyncFIFOIfc#(DMI_Request_t#(abits))  f_dmi_request  <- mkSyncFIFOFromCC(2, axi_clk);
-    SyncFIFOIfc#(DMI_Response_t#(abits)) f_dmi_response <- mkSyncFIFOToCC(2, axi_clk, axi_rst);
-    SyncPulseIfc p_hard_reset <- mkSyncPulseFromCC(axi_clk);
-
-    RISCVDMIAXI4Lite_ifc#(abits) i_dmi_axi <- mkRISCVDMIAXI4Lite(clocked_by axi_clk, reset_by axi_rst);
+    SyncFIFOIfc#(DMI_Request_t#(abits))  f_dmi_request  <- mkSyncFIFOFromCC(2, dmi_clk);
+    SyncFIFOIfc#(DMI_Response_t#(abits)) f_dmi_response <- mkSyncFIFOToCC(2, dmi_clk, dmi_rst);
+    SyncPulseIfc p_hard_reset <- mkSyncPulseFromCC(dmi_clk);
 
     rule r_update_dtmcs;
         let value <- i_dtmcs_access.updated;
@@ -166,26 +161,18 @@ module [JTAGSystem#(2, 5)] riscv_dtm#(
         p_hard_reset.send;
     endrule
 
-    rule r_axi_request;
-        i_dmi_axi.dmi.request.put(f_dmi_request.first);
-        f_dmi_request.deq;
-    endrule
-
-    rule r_axi_response;
-        let response <- i_dmi_axi.dmi.response.get;
-        f_dmi_response.enq(response);
-    endrule
-
     method hard_reset = p_hard_reset.pulse;
-    interface m_axi_rd = i_dmi_axi.m_rd;
-    interface m_axi_wr = i_dmi_axi.m_wr;
+    interface Client dmi;
+        interface request = toGet(f_dmi_request);
+        interface response = toPut(f_dmi_response);
+    endinterface
 
 endmodule
 
 module [JTAGSystem#(2, 5)] riscv_dtm_system#(
     JTAG_TAP_Meta_Config_t tap_meta,
-    Clock axi_clk,
-    Reset axi_rst
+    Clock dmi_clk,
+    Reset dmi_rst
 )(RISCVDTMDevice_ifc#(abits))
     provisos(
         Add#(7, abits_extra, abits),
@@ -198,17 +185,17 @@ module [JTAGSystem#(2, 5)] riscv_dtm_system#(
     jtag_set_idcode_instr(5'h01);
     jtag_rst_to_idcode;
 
-    let i_dtm <- riscv_dtm(axi_clk, axi_rst);
+    let i_dtm <- riscv_dtm(dmi_clk, dmi_rst);
     return i_dtm;
 
 endmodule
 
-module [Module] mkRISCVDTMAXI4Lite#(
+module [Module] mkRISCVDTM#(
     JTAG_TAP_Meta_Config_t tap_meta,
     Clock tdo_clk,
     Reset tdo_rst,
-    Clock axi_clk,
-    Reset axi_rst
+    Clock dmi_clk,
+    Reset dmi_rst
 )(JTAGSystem_ifc#(RISCVDTMDevice_ifc#(abits)))
     provisos(
         Add#(7, abits_extra, abits),
@@ -217,7 +204,7 @@ module [Module] mkRISCVDTMAXI4Lite#(
     );
 
     let system <- build_jtag_system(
-        riscv_dtm_system(tap_meta, axi_clk, axi_rst),
+        riscv_dtm_system(tap_meta, dmi_clk, dmi_rst),
         tdo_clk,
         tdo_rst
     );

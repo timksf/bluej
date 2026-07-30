@@ -5,13 +5,10 @@ import FIFOF :: *;
 import GetPut :: *;
 import ClientServer :: *;
 import Vector :: *;
+import Memory :: *;
 
 import BlueCSRCore :: *;
-import BlueCSRAXI4LiteAdapter :: *;
-
-import AXI4_Lite_Types :: *;
-import AXI4_Lite_Master :: *;
-import AXI4_Lite_Slave :: *;
+import RISCV_DMI :: *;
 
 typedef struct {
     Bool halted;
@@ -185,8 +182,8 @@ module [BlueCSRCtx_t#(32, 32)] riscv_dm_register_map(RISCVDMRegisterState_ifc);
     // DMI 0x04, byte offset 0x010.
     csr_reg_def('h010, "DATA0", "Abstract command argument and result");
     rg_data0          <- csr_reg_hu   ('h010,     0, 0, w_data0_upd, "DATA",  "Data",  "Abstract command argument zero.");
-    rg_data0_read     <- csr_reg_trigr('h010, False,                 "READ",  "Read",  "DATA0 was read.");
-    rg_data0_write    <- csr_reg_trigw('h010, True,                  "WRITE", "Write", "DATA0 was written.");
+    rg_data0_read     <- csr_reg_trigr('h010, False);
+    rg_data0_write    <- csr_reg_trigw('h010, True);
 
     // DMI 0x10, byte offset 0x040.
     csr_reg_def('h040, "DMCONTROL", "Debug Module control");
@@ -198,7 +195,7 @@ module [BlueCSRCtx_t#(32, 32)] riscv_dm_register_map(RISCVDMRegisterState_ifc);
     rg_hartselhi        <- csr_reg_hu   ('h040, 0,  6, w_hartselhi_upd,    "HARTSELHI",    "Hart Select High", "High ten bits of the selected hart index.");
     rg_ndmreset         <- csr_reg_hu   ('h040, False,  1, w_ndmreset_upd, "NDMRESET",     "Non-DM Reset",      "Resets the platform outside the Debug Module.");
     rg_dmactive         <- csr_reg_hu   ('h040, False,  0, w_dmactive_upd, "DMACTIVE",     "DM Active",         "Enables Debug Module operation.");
-    rg_dmcontrol_write  <- csr_reg_trigw('h040, True,                      "WRITE",        "Write",             "DMCONTROL was written.");
+    rg_dmcontrol_write  <- csr_reg_trigw('h040, True);
 
     // DMI 0x11, byte offset 0x044.
     csr_reg_def('h044, "DMSTATUS", "Debug Module status");
@@ -223,12 +220,12 @@ module [BlueCSRCtx_t#(32, 32)] riscv_dm_register_map(RISCVDMRegisterState_ifc);
     rg_cmderr             <- csr_reg_w1c  ('h058,           0,  8, w_cmderr_upd,        "CMDERR",      "Command Error",       "Sticky abstract command error.");
     rg_abstract_busy      <- csr_reg_ho   ('h058,       False, 12, w_abstract_busy_upd, "BUSY",        "Busy",                "An abstract command is executing.");
     Empty _abst_pbuf      <- csr_reg_rc   ('h058, Bit#(5)'(0), 24,                      "PROGBUFSIZE", "Program Buffer Size", "No Program Buffer is implemented.");
-    rg_abstractcs_write   <- csr_reg_trigw('h058,        True,                          "WRITE",       "Write",               "ABSTRACTCS was written.");
+    rg_abstractcs_write   <- csr_reg_trigw('h058, True);
 
     // DMI 0x17, byte offset 0x05c.
     csr_reg_def('h05c, "COMMAND", "Abstract command");
     rg_command       <- csr_reg_wo   ('h05c,    0, 0, "CONTROL", "Command Control", "Access Register command encoding.");
-    rg_command_write <- csr_reg_trigw('h05c, True,    "WRITE",   "Write",           "COMMAND was written.");
+    rg_command_write <- csr_reg_trigw('h05c, True);
 
     // DMI 0x38, byte offset 0x0e0.
     csr_reg_def('h0e0, "SBCS", "System Bus Access control and status");
@@ -248,13 +245,13 @@ module [BlueCSRCtx_t#(32, 32)] riscv_dm_register_map(RISCVDMRegisterState_ifc);
     // DMI 0x39, byte offset 0x0e4.
     csr_reg_def('h0e4, "SBADDRESS0", "System Bus Access address");
     rg_sbaddress0       <- csr_reg_hu   ('h0e4,    0, 0, w_sbaddress0_upd,  "ADDRESS", "Address", "System bus byte address.");
-    rg_sbaddress0_write <- csr_reg_trigw('h0e4, True,                       "WRITE",   "Write",   "SBADDRESS0 was written.");
+    rg_sbaddress0_write <- csr_reg_trigw('h0e4, True);
 
     // DMI 0x3c, byte offset 0x0f0.
     csr_reg_def('h0f0, "SBDATA0", "System Bus Access data");
     rg_sbdata0         <- csr_reg_hu   ('h0f0,     0, 0, w_sbdata0_upd, "DATA",  "Data",  "System bus access data.");
-    rg_sbdata0_read    <- csr_reg_trigr('h0f0, False,                   "READ",  "Read",  "SBDATA0 was read.");
-    rg_sbdata0_write   <- csr_reg_trigw('h0f0, True,                    "WRITE", "Write", "SBDATA0 was written.");
+    rg_sbdata0_read    <- csr_reg_trigr('h0f0, False);
+    rg_sbdata0_write   <- csr_reg_trigw('h0f0, True);
 
     // DMI 0x40, byte offset 0x100.
     csr_reg_def('h100, "HALTSUM0", "Halted hart summary");
@@ -379,11 +376,8 @@ interface RISCVDMHartPort_ifc;
 endinterface
 
 interface RISCVDM_ifc#(numeric type n_harts);
-    interface AXI4_Lite_Slave_Rd_Fab#(32, 32) s_dmi_rd;
-    interface AXI4_Lite_Slave_Wr_Fab#(32, 32) s_dmi_wr;
-
-    interface AXI4_Lite_Master_Rd_Fab#(32, 32) m_system_rd;
-    interface AXI4_Lite_Master_Wr_Fab#(32, 32) m_system_wr;
+    interface Server#(DMI_Request_t#(7), DMI_Response_t#(7)) dmi;
+    interface Client#(MemoryRequest#(32, 32), MemoryResponse#(32)) m_system;
 
     interface Vector#(n_harts, RISCVDMHartPort_ifc) harts;
 
@@ -391,8 +385,8 @@ interface RISCVDM_ifc#(numeric type n_harts);
     method Bool dmactive;
 endinterface
 
-function Bool axi_response_success(AXI4_Lite_Response response);
-    return response == OKAY || response == EXOKAY;
+function Bool csr_response_success(BlueCSRResponse_t response);
+    return response == CSR_OKAY || response == CSR_EXOKAY;
 endfunction
 
 function Bool abstract_register_supported(Bit#(16) regno);
@@ -408,12 +402,14 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
 
     BlueCSRAccess_ifc#(32, 32, 0, RISCVDMRegisterState_ifc) i_csr <-
         create_blue_csr_with_default_response(riscv_dm_register_map, False, CSR_OKAY);
-    BlueCSR_AXI4Lite_ifc#(32, 32, 0) i_dmi_axi <-
-        mkBlueCSRAXI4LiteAdapter(i_csr.external, 2, 2);
     RISCVDMRegisterState_ifc i_registers = i_csr.internal;
 
-    AXI4_Lite_Master_Rd#(32, 32) i_system_rd <- mkAXI4_Lite_Master_Rd(2);
-    AXI4_Lite_Master_Wr#(32, 32) i_system_wr <- mkAXI4_Lite_Master_Wr(2);
+    FIFOF#(DMI_Request_t#(7)) f_dmi_request <- mkFIFOF;
+    FIFOF#(DMI_Response_t#(7)) f_dmi_response <- mkFIFOF;
+    Reg#(Maybe#(DMI_Request_t#(7))) rg_dmi_pending <- mkReg(tagged Invalid);
+
+    FIFOF#(MemoryRequest#(32, 32)) f_system_request <- mkFIFOF;
+    FIFOF#(MemoryResponse#(32)) f_system_response <- mkFIFOF;
 
     Vector#(n_harts, FIFOF#(DMHartRegRequest_t))  f_hart_request  <- replicateM(mkFIFOF);
     Vector#(n_harts, FIFOF#(DMHartRegResponse_t)) f_hart_response <- replicateM(mkFIFOF);
@@ -472,6 +468,15 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
         endcase;
     endfunction
 
+    function Bit#(4) sba_byte_enable(Bit#(3) access, Bit#(2) address_lsb);
+        return case(access)
+            0: 4'b0001 << address_lsb;
+            1: (address_lsb[1] == 0 ? 4'b0011 : 4'b1100);
+            2: 4'b1111;
+            default: 0;
+        endcase;
+    endfunction
+
     function Action start_sba_read(Bit#(32) address);
         action
             Bool access_supported = i_registers.sbaccess <= 2;
@@ -494,9 +499,11 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
                 i_registers.set_sberror(3);
             end
             else begin
-                i_system_rd.request.put(AXI4_Lite_Read_Rq_Pkg {
-                    addr: {address[31:2], 2'b00},
-                    prot: UNPRIV_SECURE_DATA
+                f_system_request.enq(MemoryRequest {
+                    write: False,
+                    byteen: sba_byte_enable(i_registers.sbaccess, address[1:0]),
+                    address: {address[31:2], 2'b00},
+                    data: 0
                 });
                 rg_sba_state <= SBA_READ;
                 rg_sba_access <= i_registers.sbaccess;
@@ -521,12 +528,7 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
                 2: (data << 16);
                 default: (data << 24);
             endcase;
-            Bit#(4) write_strobes = case(i_registers.sbaccess)
-                0: (4'b0001 << address[1:0]);
-                1: (address[1] == 0 ? 4'b0011 : 4'b1100);
-                2: 4'b1111;
-                default: 0;
-            endcase;
+            Bit#(4) write_strobes = sba_byte_enable(i_registers.sbaccess, address[1:0]);
             if(rg_sba_state != SBA_IDLE) begin
                 i_registers.set_sbbusyerror(True);
             end
@@ -540,11 +542,11 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
                 i_registers.set_sberror(3);
             end
             else begin
-                i_system_wr.request.put(AXI4_Lite_Write_Rq_Pkg {
-                    addr: {address[31:2], 2'b00},
-                    data: shifted_data,
-                    strb: write_strobes,
-                    prot: UNPRIV_SECURE_DATA
+                f_system_request.enq(MemoryRequest {
+                    write: True,
+                    byteen: write_strobes,
+                    address: {address[31:2], 2'b00},
+                    data: shifted_data
                 });
                 rg_sba_state <= SBA_WRITE;
                 rg_sba_access <= i_registers.sbaccess;
@@ -648,6 +650,41 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
         endaction
     endfunction
 
+    //translate DMI requests to BlueCSR 
+    rule r_dmi_request if(rg_dmi_pending matches tagged Invalid);
+        let request = f_dmi_request.first;
+        f_dmi_request.deq;
+        if(request.op == DMI_READ || request.op == DMI_WRITE) begin
+            i_csr.external.request.put(BlueCSR_Req_t {
+                wr: request.op == DMI_WRITE,
+                addr: zeroExtend(request.address) << 2,
+                wdata: request.data,
+                wstrb: '1,
+                prot: CSR_SECURE
+            });
+            rg_dmi_pending <= tagged Valid request;
+        end
+        else begin
+            f_dmi_response.enq(DMI_Response_t {
+                address: request.address,
+                data: 0,
+                error: False,
+                epoch: request.epoch
+            });
+        end
+    endrule
+
+    rule r_dmi_response if(rg_dmi_pending matches tagged Valid .request);
+        let response <- i_csr.external.response.get;
+        f_dmi_response.enq(DMI_Response_t {
+            address: request.address,
+            data: request.op == DMI_READ ? response.rdata : 0,
+            error: !csr_response_success(response.resp),
+            epoch: request.epoch
+        });
+        rg_dmi_pending <= tagged Invalid;
+    endrule
+
     for(Integer i = 0; i < valueOf(n_harts); i = i + 1) begin
         rule r_hart_response if(!i_registers.dmcontrol_write && rg_abstract_hart == fromInteger(i));
             let response = f_hart_response[i].first;
@@ -674,11 +711,12 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
     end
 
     rule r_system_read_response if(rg_sba_state == SBA_READ);
-        let response <- i_system_rd.response.get;
+        let response = f_system_response.first;
+        f_system_response.deq;
         if(rg_sba_discard) begin
             rg_sba_discard <= False;
         end
-        else if(axi_response_success(response.resp)) begin
+        else begin
             Bit#(32) shifted_data = case(rg_sba_address_lsb)
                 0: response.data;
                 1: (response.data >> 8);
@@ -695,25 +733,19 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
                 i_registers.set_sbaddress0(i_registers.sbaddress0 + sba_increment(rg_sba_access));
             end
         end
-        else begin
-            i_registers.set_sberror(7);
-        end
         rg_sba_state <= SBA_IDLE;
         i_registers.set_sbbusy(False);
     endrule
 
     rule r_system_write_response if(rg_sba_state == SBA_WRITE);
-        let response <- i_system_wr.response.get;
+        f_system_response.deq;
         if(rg_sba_discard) begin
             rg_sba_discard <= False;
         end
-        else if(axi_response_success(response.resp)) begin
+        else begin
             if(i_registers.sbautoincrement) begin
                 i_registers.set_sbaddress0(i_registers.sbaddress0 + sba_increment(rg_sba_access));
             end
-        end
-        else begin
-            i_registers.set_sberror(7);
         end
         rg_sba_state <= SBA_IDLE;
         i_registers.set_sbbusy(False);
@@ -883,10 +915,11 @@ module [Module] mkRISCVDM(RISCVDM_ifc#(n_harts)) provisos (
         endinterface;
     end
 
-    interface s_dmi_rd = i_dmi_axi.s_rd;
-    interface s_dmi_wr = i_dmi_axi.s_wr;
-    interface m_system_rd = i_system_rd.fab;
-    interface m_system_wr = i_system_wr.fab;
+    interface Server dmi;
+        interface request = toPut(f_dmi_request);
+        interface response = toGet(f_dmi_response);
+    endinterface
+    interface m_system = toGPClient(f_system_request, f_system_response);
     interface harts = hart_ports;
 
     method ndmreset = i_registers.dmactive && i_registers.ndmreset;

@@ -4,7 +4,8 @@ import Clocks :: *;
 import Connectable :: *;
 import Vector :: *;
 
-import AXI4_Lite_Master :: *;
+import ClientServer :: *;
+import Memory :: *;
 
 import JTAG_System :: *;
 import JTAG_Types :: *;
@@ -12,8 +13,7 @@ import RISCV_DM :: *;
 import RISCV_DTM :: *;
 
 interface RISCVDebugDevice_ifc#(numeric type n_harts);
-    interface AXI4_Lite_Master_Rd_Fab#(32, 32) m_system_rd;
-    interface AXI4_Lite_Master_Wr_Fab#(32, 32) m_system_wr;
+    interface Client#(MemoryRequest#(32, 32), MemoryResponse#(32)) m_system;
 
     interface Vector#(n_harts, RISCVDMHartPort_ifc) harts;
 
@@ -22,7 +22,7 @@ interface RISCVDebugDevice_ifc#(numeric type n_harts);
     method Bool dtm_hard_reset;
 endinterface
 
-module [JTAGSystem#(2, 5)] riscv_jtag_debug#(
+module [JTAGSystem#(n, 5)] riscv_jtag_debug#(
     JTAG_TAP_Meta_Config_t tap_meta,
     Clock debug_clk,
     Reset debug_rst
@@ -39,17 +39,29 @@ module [JTAGSystem#(2, 5)] riscv_jtag_debug#(
     RISCVDTMDevice_ifc#(7) i_dtm <- riscv_dtm(debug_clk, debug_rst);
     RISCVDM_ifc#(n_harts) i_dm <- liftModule(mkRISCVDM(clocked_by debug_clk, reset_by debug_rst));
 
-    mkConnection(i_dtm.m_axi_rd, i_dm.s_dmi_rd);
-    mkConnection(i_dtm.m_axi_wr, i_dm.s_dmi_wr);
+    mkConnection(i_dtm.dmi, i_dm.dmi);
 
-    interface m_system_rd = i_dm.m_system_rd;
-    interface m_system_wr = i_dm.m_system_wr;
+    interface m_system = i_dm.m_system;
     interface harts = i_dm.harts;
 
     method ndmreset = i_dm.ndmreset;
     method dmactive = i_dm.dmactive;
     method dtm_hard_reset = i_dtm.hard_reset;
 
+endmodule
+
+// Preserve the standalone two-instruction DTM wrapper while allowing a
+// larger JTAGSystem context to add further endpoints.
+module [JTAGSystem#(2, 5)] riscv_jtag_debug_default#(
+    JTAG_TAP_Meta_Config_t tap_meta,
+    Clock debug_clk,
+    Reset debug_rst
+)(RISCVDebugDevice_ifc#(n_harts)) provisos (
+    Add#(1, _n_harts_minus_one, n_harts),
+    Add#(_hartsel_pad, TLog#(n_harts), 20)
+);
+    let debug <- riscv_jtag_debug(tap_meta, debug_clk, debug_rst);
+    return debug;
 endmodule
 
 module [Module] mkRISCVJTAGDebug#(
@@ -64,7 +76,7 @@ module [Module] mkRISCVJTAGDebug#(
 );
 
     let system <- build_jtag_system(
-        riscv_jtag_debug(tap_meta, debug_clk, debug_rst),
+        riscv_jtag_debug_default(tap_meta, debug_clk, debug_rst),
         tdo_clk,
         tdo_rst
     );

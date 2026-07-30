@@ -16,3 +16,12 @@
 [submodule "examples/SCOoOTER"]
 	path = examples/SCOoOTER
 	url = https://github.com/esa-tu-darmstadt/SCOoOTER.git
+[submodule "examples/blueuart"]
+	path = examples/blueuart
+	url = https://github.com/timksf/blueuart.git
+[submodule "examples/bluefabric"]
+	path = examples/bluefabric
+	url = https://github.com/timksf/bluefabric.git
+[submodule "examples/bluecsr"]
+	path = examples/bluecsr
+	url = https://github.com/timksf/bluecsr.git
