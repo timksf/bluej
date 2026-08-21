@@ -10,6 +10,10 @@ they define a requirement at the core boundary.
 
 The complete simulation path is:
 
+For the relationship between this private SCOoTER/BlueJ interface and the
+execution-based interfaces used by PULP/OpenHW cores, see the
+[`SCOoTER debug interface portability note`](scoooter_debug_interface_comparison.md).
+
 ```text
 GDB
  `- OpenOCD
