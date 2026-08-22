@@ -25,3 +25,6 @@
 [submodule "examples/bluecsr"]
 	path = examples/bluecsr
 	url = https://github.com/timksf/bluecsr.git
+[submodule "examples/bluegpio"]
+	path = examples/bluegpio
+	url = https://github.com/timksf/bluegpio.git
