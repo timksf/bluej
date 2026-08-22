@@ -15,7 +15,7 @@
 	url = https://github.com/timksf/bluecsr.git
 [submodule "examples/SCOoOTER"]
 	path = examples/SCOoOTER
-	url = https://github.com/esa-tu-darmstadt/SCOoOTER.git
+	url = https://github.com/timksf/SCOoOTER.git
 [submodule "examples/blueuart"]
 	path = examples/blueuart
 	url = https://github.com/timksf/blueuart.git
