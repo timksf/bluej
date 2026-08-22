@@ -45,7 +45,7 @@ typedef enum { FetchResponse, DataReadResponse, DataWriteResponse } CpuResponseK
 
 interface ScoooterCpu_ifc;
     interface AhbMasterFabric_ifc#(32, 32) m_ahb;
-    interface ScoooterDebugHartIFC debug_hart;
+    interface DebugHartIFC debug_hart;
     method Action sw_interrupt(Bool value);
     method Action timer_interrupt(Bool value);
     method Action external_interrupt(Bool value);

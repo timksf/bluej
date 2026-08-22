@@ -58,6 +58,7 @@ module [Module] mkScoooterSystem#(
     MemoryAhbAdapter_ifc         i_dm_ahb           <- mkMemoryAhbAdapter(clocked_by system_clk, reset_by system_rst_n);
     JtagAhbAdapter_ifc           i_jtag_ahb         <- mkJtagAhbAdapter(clocked_by system_clk, reset_by system_rst_n);
     FIFOF#(DMHartRegRequest_t)    f_abstract_request <- mkFIFOF(clocked_by system_clk, reset_by system_rst_n);
+    FIFOF#(DMHartRegRequest_t)    f_abstract_inflight <- mkFIFOF(clocked_by system_clk, reset_by system_rst_n);
 
     //jtag RISCV DM system bus to ahb adapter
     mkConnection(i_jtag.debug.m_system, i_dm_ahb.memory);
@@ -83,8 +84,12 @@ module [Module] mkScoooterSystem#(
             running: i_cpu.debug_hart.running,
             unavailable: False
         });
-        i_cpu.debug_hart.halt_request(i_jtag.debug.harts[0].halt_request);
-        i_cpu.debug_hart.resume_request(i_jtag.debug.harts[0].resume_request);
+        i_cpu.debug_hart.haltreq(i_jtag.debug.harts[0].halt_request);
+        i_cpu.debug_hart.resumereq(i_jtag.debug.harts[0].resume_request);
+        i_cpu.debug_hart.ackhavereset(i_jtag.debug.harts[0].acknowledge_reset);
+        if(i_cpu.debug_hart.havereset && !i_jtag.debug.harts[0].acknowledge_reset) begin
+            i_jtag.debug.harts[0].reset_seen;
+        end
     endrule
 
     rule r_accept_abstract_register;
@@ -92,18 +97,26 @@ module [Module] mkScoooterSystem#(
         f_abstract_request.enq(request);
     endrule
 
-    rule r_write_abstract_register(f_abstract_request.first.write);
+    rule r_forward_abstract_register;
         let request = f_abstract_request.first;
         f_abstract_request.deq;
-        i_cpu.debug_hart.write_register(request.regno, request.data);
-        i_jtag.debug.harts[0].registers.response.put(DMHartRegResponse_t { data: request.data, error: 0, epoch: request.epoch });
+        i_cpu.debug_hart.abstract.request.put(DebugRequest {
+            regno: request.regno,
+            write: request.write,
+            data: request.data
+        });
+        f_abstract_inflight.enq(request);
     endrule
 
-    rule r_read_abstract_register(!f_abstract_request.first.write);
-        let request = f_abstract_request.first;
-        f_abstract_request.deq;
-        let data <- i_cpu.debug_hart.read_register(request.regno);
-        i_jtag.debug.harts[0].registers.response.put(DMHartRegResponse_t { data: data, error: 0, epoch: request.epoch });
+    rule r_return_abstract_register;
+        let request = f_abstract_inflight.first;
+        f_abstract_inflight.deq;
+        let response <- i_cpu.debug_hart.abstract.response.get;
+        i_jtag.debug.harts[0].registers.response.put(DMHartRegResponse_t {
+            data: response.data,
+            error: response.supported ? 0 : 2,
+            epoch: request.epoch
+        });
     endrule
 
     method gpio_i   = i_bus.gpio_i;

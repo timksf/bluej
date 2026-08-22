@@ -6,7 +6,7 @@ monitor halt
 load hdl/build/scoooter-gdb.elf
 set $pc = _start
 set $t0 = 0
-set $sp = _stack_top
+set $sp = (unsigned int) _stack_top
 
 stepi
 if $pc != (_start + 4)

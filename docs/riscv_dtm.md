@@ -87,8 +87,8 @@ store buffer, and re-enters debug with `dcsr.cause=step`. When `dcsr.ebreakm`
 is set, a machine-mode `ebreak` is intercepted at Commit instead of being sent
 to `mtvec`; `dpc` identifies the breakpoint instruction and
 `dcsr.cause=ebreak`. This supports OpenOCD/GDB software breakpoints in writable
-RAM without a Program Buffer. Defining `SCOOOTER_DISABLE_DEBUG` removes these
-interfaces and internal paths from SCOoOTER.
+RAM without a Program Buffer. Defining `SCOOOTER_DEBUG` adds these interfaces
+and internal paths to SCOoOTER; the core is built without them otherwise.
 
 See [`scoooter_debug_hardware.md`](scoooter_debug_hardware.md) for a detailed
 description of the corresponding SCOoOTER pipeline, register-file, and
@@ -143,4 +143,4 @@ boot ROM at `0x00000000`, and writable executable RAM at `0x80000000`.
 `hdl/test/scoooter_gdb.gdb` loads an ELF through SBA and verifies GDB `stepi`,
 software-breakpoint entry, breakpoint removal, and stepping over the restored
 instruction. `TestScoooterNoDebug` verifies that SCOoOTER also elaborates and
-runs with `SCOOOTER_DISABLE_DEBUG`.
+runs with debug support disabled.

@@ -134,16 +134,17 @@ make -C hdl RUN_TEST=TestScoooterOOCD SCOOOTER_NUM_THREADS=2 sim
 openocd -c "set SCOOOTER_HART_COUNT 2" -f hdl/test/scoooter.cfg
 ```
 
-Hart indices are flattened as `cpu * NUM_THREADS + thread`. Debug support now
+Hart indices are flattened as `cpu * NUM_THREADS + thread`. Debug support
 includes independent halt/resume, GPR, PC, `dcsr`, implemented machine CSR
-access, 8/16/32-bit SBA, precise DCSR single-step, and software breakpoints in
-writable RAM through `ebreak` debug entry. Trigger-based hardware breakpoints,
-non-DM reset wiring, and a Program Buffer are not implemented yet.
+access, 8/16/32-bit SBA, precise DCSR single-step, software breakpoints in
+writable RAM through `ebreak` debug entry, and reset-status reporting. The
+SCOoOTER core's debug endpoint is documented in
+[`examples/SCOoOTER/docs/debug_interface.md`](examples/SCOoOTER/docs/debug_interface.md).
+Trigger-based hardware breakpoints and a Program Buffer are not implemented.
 
-SCOoOTER debug support is enabled by default. Define
-`SCOOOTER_DISABLE_DEBUG` to remove its debug ports, halt/step state, pipeline
-controls, and direct architectural-register access. The following regression
-builds and runs that configuration:
+SCOoOTER debug support is positively opt-in: define `SCOOOTER_DEBUG` when
+building the core. The following regression builds the default no-debug
+configuration:
 
 ```bash
 make -C hdl RUN_TEST=TestScoooterNoDebug sim

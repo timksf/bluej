@@ -36,6 +36,7 @@ EXTRA_FLAGS += -show-schedule
 EXTRA_FLAGS += -D "BSV_TIMESCALE=1ns/1ps"
 EXTRA_FLAGS += -D "SCOOOTER_NUM_THREADS=1"
 EXTRA_FLAGS += -D "SCOOOTER_NUM_CPU=1"
+EXTRA_FLAGS += -D "SCOOOTER_DEBUG"
 
 C_FILES += $(abspath ../../hdl/src/bdpi/jtag_bdpi.cc)
 

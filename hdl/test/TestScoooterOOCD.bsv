@@ -5,11 +5,9 @@ import Clocks :: *;
 import Connectable :: *;
 import FIFOF :: *;
 import GetPut :: *;
+import Memory :: *;
 import StmtFSM :: *;
 import Vector :: *;
-
-import AXI4_Lite_Slave :: *;
-import AXI4_Lite_Types :: *;
 
 import ClockUtil :: *;
 import JTAG_BDPI :: *;
@@ -103,11 +101,6 @@ module [Module] mkTestScoooterOOCD(TestHandler);
 
     Vector#(TExp#(DebugRAMAddressWidth), Reg#(Bit#(32))) rg_ram <- replicateM(mkReg(0, clocked_by debug_clk, reset_by debug_rst));
 
-    AXI4_Lite_Slave_Rd#(32, 32) i_system_rd <- mkAXI4_Lite_Slave_Rd(2, clocked_by debug_clk, reset_by debug_rst);
-    AXI4_Lite_Slave_Wr#(32, 32) i_system_wr <- mkAXI4_Lite_Slave_Wr(2, clocked_by debug_clk, reset_by debug_rst);
-    mkConnection(tap.device_ifc.m_system_rd, i_system_rd.fab);
-    mkConnection(tap.device_ifc.m_system_wr, i_system_wr.fab);
-
     rule r_core_instruction_read;
         let request <- core.imem_r.request.get;
         let address = pack(tpl_1(request));
@@ -150,33 +143,22 @@ module [Module] mkTestScoooterOOCD(TestHandler);
         core.dmem_w.response.put(tpl_4(request));
     endrule
 
-    rule r_debug_system_read;
-        let request <- i_system_rd.request.get;
+    rule r_debug_system_access;
+        let request <- tap.device_ifc.m_system.request.get;
         Bit#(32) data = 0;
-        AXI4_Lite_Response response = DECERR;
-        if(is_boot_rom_address(request.addr)) begin
-            data = boot_rom_word(request.addr);
-            response = OKAY;
+        if(!request.write) begin
+            if(is_boot_rom_address(request.address)) begin
+                data = boot_rom_word(request.address);
+            end
+            else if(is_ram_address(request.address)) begin
+                data = rg_ram[ram_index(request.address)];
+            end
         end
-        else if(is_ram_address(request.addr)) begin
-            data = rg_ram[ram_index(request.addr)];
-            response = OKAY;
+        else if(is_ram_address(request.address)) begin
+            let index = ram_index(request.address);
+            rg_ram[index] <= merge_write_data(rg_ram[index], request.data, request.byteen);
         end
-        i_system_rd.response.put(AXI4_Lite_Read_Rs_Pkg {
-            data: data,
-            resp: response
-        });
-    endrule
-
-    rule r_debug_system_write;
-        let request <- i_system_wr.request.get;
-        AXI4_Lite_Response response = SLVERR;
-        if(is_ram_address(request.addr)) begin
-            let index = ram_index(request.addr);
-            rg_ram[index] <= merge_write_data(rg_ram[index], request.data, request.strb);
-            response = OKAY;
-        end
-        i_system_wr.response.put(AXI4_Lite_Write_Rs_Pkg { resp: response });
+        tap.device_ifc.m_system.response.put(MemoryResponse { data: data });
     endrule
 
     rule r_drive_interrupts;
@@ -189,6 +171,7 @@ module [Module] mkTestScoooterOOCD(TestHandler);
         for(Integer thread = 0; thread < valueOf(NUM_THREADS); thread = thread + 1) begin
             Integer hart = cpu * valueOf(NUM_THREADS) + thread;
             FIFOF#(DMHartRegRequest_t) f_abstract_request <- mkFIFOF(clocked_by debug_clk, reset_by debug_rst);
+            FIFOF#(DMHartRegRequest_t) f_abstract_inflight <- mkFIFOF(clocked_by debug_clk, reset_by debug_rst);
 
             rule r_drive_hart_debug;
                 tap.device_ifc.harts[hart].status(DMHartStatus_t {
@@ -196,8 +179,12 @@ module [Module] mkTestScoooterOOCD(TestHandler);
                     running: core.debug_harts[cpu][thread].running,
                     unavailable: False
                 });
-                core.debug_harts[cpu][thread].halt_request(tap.device_ifc.harts[hart].halt_request);
-                core.debug_harts[cpu][thread].resume_request(tap.device_ifc.harts[hart].resume_request);
+                core.debug_harts[cpu][thread].haltreq(tap.device_ifc.harts[hart].halt_request);
+                core.debug_harts[cpu][thread].resumereq(tap.device_ifc.harts[hart].resume_request);
+                core.debug_harts[cpu][thread].ackhavereset(tap.device_ifc.harts[hart].acknowledge_reset);
+                if(core.debug_harts[cpu][thread].havereset && !tap.device_ifc.harts[hart].acknowledge_reset) begin
+                    tap.device_ifc.harts[hart].reset_seen;
+                end
             endrule
 
             rule r_accept_abstract_register;
@@ -205,24 +192,24 @@ module [Module] mkTestScoooterOOCD(TestHandler);
                 f_abstract_request.enq(request);
             endrule
 
-            rule r_write_abstract_register(f_abstract_request.first.write);
+            rule r_forward_abstract_register;
                 let request = f_abstract_request.first;
                 f_abstract_request.deq;
-                core.debug_harts[cpu][thread].write_register(request.regno, request.data);
-                tap.device_ifc.harts[hart].registers.response.put(DMHartRegResponse_t {
-                    data: request.data,
-                    error: 0,
-                    epoch: request.epoch
+                core.debug_harts[cpu][thread].abstract.request.put(DebugRequest {
+                    regno: request.regno,
+                    write: request.write,
+                    data: request.data
                 });
+                f_abstract_inflight.enq(request);
             endrule
 
-            rule r_read_abstract_register(!f_abstract_request.first.write);
-                let request = f_abstract_request.first;
-                f_abstract_request.deq;
-                let data <- core.debug_harts[cpu][thread].read_register(request.regno);
+            rule r_return_abstract_register;
+                let request = f_abstract_inflight.first;
+                f_abstract_inflight.deq;
+                let response <- core.debug_harts[cpu][thread].abstract.response.get;
                 tap.device_ifc.harts[hart].registers.response.put(DMHartRegResponse_t {
-                    data: data,
-                    error: 0,
+                    data: response.data,
+                    error: response.supported ? 0 : 2,
                     epoch: request.epoch
                 });
             endrule
