@@ -19,6 +19,8 @@ hdl/test/__pycache__/
 hdl/src/rtl/lib/
 hdl/src/rtl/testing/
 
+*.bin
+*.elf
 *.hex
 
 vivado*

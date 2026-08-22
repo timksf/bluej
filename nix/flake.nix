@@ -15,6 +15,11 @@
                 devShell = with pkgs; pkgs.mkShellNoCC {
                     packages = with pkgs; [
                         gcc
+                        # The wrapped compiler adds host hardening flags that
+                        # are not supported when targeting bare-metal RISC-V.
+                        llvmPackages.clang-unwrapped
+                        llvmPackages.lld
+                        llvmPackages.llvm
                         cmake
                         bluespec
                         yosys
