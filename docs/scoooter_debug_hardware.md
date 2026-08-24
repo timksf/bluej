@@ -11,7 +11,7 @@ controls.
 The core exposes one `DebugHartIFC` for each hardware thread. `Dave` preserves
 the same shape as `Vector#(NUM_CPU, Vector#(NUM_THREADS, DebugHartIFC))`.
 The abstract register protocol and bridge contract are documented in
-[`examples/SCOoOTER/docs/debug_interface.md`](../examples/SCOoOTER/docs/debug_interface.md).
+the SCOoOTER dependency's `docs/debug_interface.md`.
 
 ## Run control
 

@@ -89,8 +89,8 @@ Run SCOoOTER with the Debug Module and OpenOCD remote-bitbang transport in
 two terminals:
 
 ```bash
-make -C hdl RUN_TEST=TestScoooterOOCD sim
-openocd -f hdl/test/scoooter.cfg
+make -C scoooter-bluej-demo sim
+openocd -f scoooter-bluej-demo/openocd.cfg
 ```
 
 The testbench maps a read-only boot ROM at `0x00000000` and a writable,
@@ -101,8 +101,8 @@ Build and load the example RV32 ELF, then exercise single-step and a GDB
 software breakpoint:
 
 ```bash
-make -C hdl scoooter-gdb-elf
-gdb-multiarch hdl/build/scoooter-gdb.elf
+make -C scoooter-bluej-demo scoooter-gdb-elf
+gdb-multiarch scoooter-bluej-demo/build/scoooter-gdb.elf
 ```
 
 Inside GDB:
@@ -121,17 +121,19 @@ The supplied batch regression performs the same workflow and checks the PC
 and `t0` after every stop:
 
 ```bash
-gdb-multiarch -q -batch -x hdl/test/scoooter_gdb.gdb \
-    hdl/build/scoooter-gdb.elf
+gdb-multiarch -q -batch \
+    -x scoooter-bluej-demo/test/scoooter_gdb.gdb \
+    scoooter-bluej-demo/build/scoooter-gdb.elf
 ```
 
 `SCOOOTER_CLANG` and `SCOOOTER_LLD` override the compiler and linker used by
-the `scoooter-gdb-elf` target.
+the `scoooter-gdb-elf` target in the standalone demo Makefile.
 For a two-hart SCOoOTER configuration, use matching counts on both sides:
 
 ```bash
-make -C hdl RUN_TEST=TestScoooterOOCD SCOOOTER_NUM_THREADS=2 sim
-openocd -c "set SCOOOTER_HART_COUNT 2" -f hdl/test/scoooter.cfg
+make -C scoooter-bluej-demo sim SCOOOTER_NUM_THREADS=2 SCOOOTER_NUM_CPU=1
+openocd -c "set SCOOOTER_HART_COUNT 2" \
+    -f scoooter-bluej-demo/openocd.cfg
 ```
 
 Hart indices are flattened as `cpu * NUM_THREADS + thread`. Debug support
@@ -139,16 +141,8 @@ includes independent halt/resume, GPR, PC, `dcsr`, implemented machine CSR
 access, 8/16/32-bit SBA, precise DCSR single-step, software breakpoints in
 writable RAM through `ebreak` debug entry, and reset-status reporting. The
 SCOoOTER core's debug endpoint is documented in
-[`examples/SCOoOTER/docs/debug_interface.md`](examples/SCOoOTER/docs/debug_interface.md).
+the SCOoOTER dependency's `docs/debug_interface.md`.
 Trigger-based hardware breakpoints and a Program Buffer are not implemented.
-
-SCOoOTER debug support is positively opt-in: define `SCOOOTER_DEBUG` when
-building the core. The following regression builds the default no-debug
-configuration:
-
-```bash
-make -C hdl RUN_TEST=TestScoooterNoDebug sim
-```
 
 For Verilog simulation:
 

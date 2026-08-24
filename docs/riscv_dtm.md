@@ -138,9 +138,9 @@ errors. The multi-hart test covers selection, per-hart halt and abstract-command
 routing, `HALTSUM0`, and nonexistent selectors. The BlueCSR test checks the
 legacy and configurable fallback responses for unmatched accesses.
 
-`TestScoooterOOCD` connects the full DTM/DM to a SCOoOTER core, a read-only
+`scoooter-bluej-demo/test/TestScoooterSoCOOCDTB.bsv` connects the full DTM/DM to a SCOoOTER core, a read-only
 boot ROM at `0x00000000`, and writable executable RAM at `0x80000000`.
-`hdl/test/scoooter_gdb.gdb` loads an ELF through SBA and verifies GDB `stepi`,
+`scoooter-bluej-demo/test/scoooter_gdb.gdb` loads an ELF through SBA and verifies GDB `stepi`,
 software-breakpoint entry, breakpoint removal, and stepping over the restored
-instruction. `TestScoooterNoDebug` verifies that SCOoOTER also elaborates and
-runs with debug support disabled.
+instruction. The complete standalone build and OpenOCD configuration are in
+[`scoooter-bluej-demo/`](../scoooter-bluej-demo/).
