@@ -29,6 +29,8 @@ This note describes the clocking structure used by the BlueJ JTAG test and simul
 
 ## Clock Hierarchy
 
+In the diagram, green nodes are in the default/bus clock domain, blue nodes are in the generated `tck_out` domain, and orange nodes are in the inverted `tdo_clk` domain. Gray nodes are clock-domain adapters or crossings that span more than one domain.
+
 ```mermaid
 flowchart TD
     TB["testbench/default clock<br/>bus_clk or implicit Bluesim clock"]
@@ -66,6 +68,16 @@ flowchart TD
     TDOCLK -->|"source clock: tdo_clk"| TDONC
     TB -->|"destination clock"| TDONC
     TDONC -->|"ext_tdo in default clock"| OOCD
+
+    classDef defaultDomain fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef tckDomain fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef tdoDomain fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef crossing fill:#f3f4f6,stroke:#6b7280,color:#374151
+
+    class TB,EXT,OOCD defaultDomain
+    class TCK,TRST,TAP tckDomain
+    class TDOCLK,TDORST,TDOREG tdoDomain
+    class SHIM,ADAPT,TDONC crossing
 ```
 
 ## Crossing Inventory
