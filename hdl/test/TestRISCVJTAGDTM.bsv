@@ -1,6 +1,7 @@
 package TestRISCVJTAGDTM;
 
 import Clocks :: *;
+import ClientServer :: *;
 import Connectable :: *;
 import GetPut :: *;
 import StmtFSM :: *;
@@ -8,8 +9,6 @@ import StmtFSM :: *;
 import TestHelper :: *;
 import JTAG_TB :: *;
 
-import AXI4_Lite_Types :: *;
-import AXI4_Lite_Slave :: *;
 import JTAG_System :: *;
 import JTAG_Types :: *;
 import ClockUtil :: *;
@@ -32,8 +31,8 @@ endfunction
 module mkRISCVJTAGDUT#(
     Clock tdo_clk,
     Reset tdo_rst,
-    Clock axi_clk,
-    Reset axi_rst
+    Clock dmi_clk,
+    Reset dmi_rst
 )(JTAGSystem_ifc#(RISCVDTMDevice_ifc#(TestABits)));
 
     JTAG_TAP_Meta_Config_t tap_meta = JTAG_TAP_Meta_Config_t {
@@ -42,15 +41,15 @@ module mkRISCVJTAGDUT#(
         idcode_part: 16'h4567
     };
 
-    let system <- mkRISCVDTMAXI4Lite(tap_meta, tdo_clk, tdo_rst, axi_clk, axi_rst);
+    let system <- mkRISCVDTM(tap_meta, tdo_clk, tdo_rst, dmi_clk, dmi_rst);
     return system;
 
 endmodule
 
 module [Module] mkTestRISCVJTAGDTM(TestHandler);
 
-    Clock axi_clk <- exposeCurrentClock;
-    Reset axi_rst <- exposeCurrentReset;
+    Clock dmi_clk <- exposeCurrentClock;
+    Reset dmi_rst <- exposeCurrentReset;
 
     let jtag_stim <- mkJTAGShim;
 
@@ -65,7 +64,7 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
     let tdo_clk = jtag_stim.tdo_clk;
     let tdo_rst = jtag_stim.tdo_rst;
 
-    let dut <- mkRISCVJTAGDUT(tdo_clk, tdo_rst, axi_clk, axi_rst, clocked_by tck, reset_by trst);
+    let dut <- mkRISCVJTAGDUT(tdo_clk, tdo_rst, dmi_clk, dmi_rst, clocked_by tck, reset_by trst);
 
     mkConnection(toGet(w_tck),              toPut(jtag_stim.ext_tck));
     mkConnection(toGet(w_trst),             toPut(jtag_stim.ext_trst));
@@ -76,11 +75,6 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
     mkConnection(toGet(jtag_stim.int_tms),  toPut(dut.tms));
     mkConnection(toGet(jtag_stim.int_tdi),  toPut(dut.tdi));
     mkConnection(toGet(dut.tdo),            toPut(jtag_stim.int_tdo));
-
-    AXI4_Lite_Slave_Rd#(32, 32) i_axi_rd <- mkAXI4_Lite_Slave_Rd(2);
-    AXI4_Lite_Slave_Wr#(32, 32) i_axi_wr <- mkAXI4_Lite_Slave_Wr(2);
-    mkConnection(dut.device_ifc.m_axi_rd, i_axi_rd.fab);
-    mkConnection(dut.device_ifc.m_axi_wr, i_axi_wr.fab);
 
     Reg#(Bit#(32)) rg_written_data <- mkReg(0);
     Reg#(Bit#(32)) rg_dtmcs_out <- mkReg(0);
@@ -93,20 +87,17 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
         rg_hard_reset_seen <= True;
     endrule
 
-    rule r_axi_read;
-        let request <- i_axi_rd.request.get;
-        i_axi_rd.response.put(AXI4_Lite_Read_Rs_Pkg {
-            data: request.addr == 32'h44 ? 32'h89abcdef : 0,
-            resp: OKAY
-        });
-    endrule
-
-    rule r_axi_write;
-        let request <- i_axi_wr.request.get;
-        if(request.addr == 32'h40) begin
+    rule r_dmi_request;
+        let request <- dut.device_ifc.dmi.request.get;
+        if(request.op == DMI_WRITE && request.address == 7'h10) begin
             rg_written_data <= request.data;
         end
-        i_axi_wr.response.put(AXI4_Lite_Write_Rs_Pkg { resp: OKAY });
+        dut.device_ifc.dmi.response.put(DMI_Response_t {
+            address: request.address,
+            data:    request.op == DMI_READ && request.address == 7'h11 ? 32'h89abcdef : 0,
+            error:   False,
+            epoch:   request.epoch
+        });
     endrule
 
     Stmt test = seq
@@ -210,7 +201,7 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
         jtag_idle(w_tck, w_tms, w_tdi, 12);
         action
             if(!rg_hard_reset_seen) begin
-                $display("DTMHARDRESET did not cross to the AXI clock domain");
+                $display("DTMHARDRESET did not cross to the DMI clock domain");
                 $finish(1);
             end
         endaction

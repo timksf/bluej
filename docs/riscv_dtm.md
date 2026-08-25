@@ -1,28 +1,26 @@
-# RISC-V JTAG DTM and DMI AXI4-Lite Bridge
+# RISC-V JTAG Debug
 
-The implementation targets the supplied **RISC-V External Debug Support
-0.13.2** document. The new transport logic was derived from sections 3.1 and
-6.1 and appendix B.1 of that document. It does not use another DTM or DMI
-implementation as a source.
+BlueJ implements the JTAG Debug Transport Module and a minimal Debug Module
+profile from the
+[RISC-V External Debug Support Specification 0.13.2](https://docs.riscv.org/reference/debug-trace-ras/debug/v0.13.2/_attachments/riscv-debug.pdf).
 
 ## Layers
 
-- `riscv_dtm` is a `JTAGSystem#(2, 5)` context module. It owns DTMCS/DMI
-  state, sticky busy and error behavior, native JTAG capture/update events,
-  and the DMI AXI4-Lite master interface.
-- `mkRISCVDMIAXI4Lite` is independent of JTAG. It converts DMI requests to a
-  32-bit AXI4-Lite master interface.
-- `riscv_dtm_system` configures the standalone DTM TAP and
-  `mkRISCVDTMAXI4Lite` builds the generic pin-level system. The same
-  module can sit behind `mkBSCAN2JTAG` when a nested TAP is required on a
-  Xilinx BSCANE2 USER chain.
-- `mkRISCVDM` implements a parameterized multi-hart RV32 Debug Module. It exposes
-  a DMI AXI4-Lite slave, a direct abstract-register hart port, and a separate
-  AXI4-Lite master for System Bus Access.
-- `mkRISCVJTAGDebug` connects the standard JTAG DTM to `mkRISCVDM` and exposes
-  the hart and system-bus interfaces as one pin-level JTAG system.
+- `riscv_dtm` owns DTMCS and DMI scan state, sticky busy/error behavior, and
+  the clock-domain crossing between JTAG TCK and a typed DMI client.
+- `riscv_dtm_system` supplies the standard five-bit TAP configuration.
+- `mkRISCVDTM` builds the standalone pin-level DTM.
+- `mkRISCVDM` implements a parameterized multi-hart RV32 Debug Module. It
+  exposes a typed DMI server, direct per-hart abstract-register ports, and a
+  typed system-memory client for System Bus Access.
+- `mkRISCVJTAGDebug` connects the DTM and DM into one pin-level JTAG system.
 
-The standard instruction assignments are fixed in the wrapper:
+The DTM and DM use `Client`/`Server` interfaces directly. Bus-specific adapters
+belong at the integration boundary and are not part of this implementation.
+
+## JTAG Registers
+
+The standalone DTM uses these standard instruction assignments:
 
 | IR | Data register |
 |---:|---|
@@ -31,116 +29,88 @@ The standard instruction assignments are fixed in the wrapper:
 | `0x11` | DMI (`abits + 34` bits) |
 | other | BYPASS (1 bit) |
 
-The TAP uses a 5-bit IR and restores IDCODE after Test-Logic-Reset.
+The TAP has a five-bit instruction register and restores IDCODE after
+Test-Logic-Reset.
 
-A parent with the same `JTAGSystem#(2, 5)` context can instantiate
-`riscv_dtm` directly, provide its own TAP configuration, and call
-`build_jtag_system`. The current type-indexed collection cannot merge the DTM
-into a larger endpoint count; that would require a composable endpoint-bundle
-API.
+A parent using the same `JTAGSystem#(2, 5)` context can instantiate
+`riscv_dtm` directly, provide its TAP configuration, and call
+`build_jtag_system`.
 
-## DTM state and DM BlueCSR fields
+## DTM Behavior
 
-DTMCS and DMI are the two native JTAG registers. The generic JTAG register
-captures the current DTM value; its capture pulse supplies DMI's busy side
-effect, so no custom DMI scan-register implementation or private BlueCSR map
-is required.
+The DMI scan register reports `DMI_RESERVED` while a request is outstanding.
+Starting another operation or capturing DMI before that request completes sets
+the sticky busy status. A failed response sets the sticky failure status.
+`dmireset` clears the sticky status.
 
-The DM register map also uses BlueCSR for field storage and metadata. Its
-offsets are the DMI word indices converted to byte addresses by the DMI AXI
-bridge: `DATA0` at `0x010`, `DMCONTROL` at `0x040`, `DMSTATUS` at `0x044`,
-`ABSTRACTCS` at `0x058`, `COMMAND` at `0x05c`, `SBCS` at `0x0e0`,
-`SBADDRESS0` at `0x0e4`, `SBDATA0` at `0x0f0`, and `HALTSUM0` at `0x100`.
-BlueCSR is the live address decoder and its AXI4-Lite adapter is the DM's DMI
-slave. `csr_reg_hu`, `csr_reg_ho`, and `csr_reg_w1c` keep the live field state
-inside BlueCSR. Register writes use the field's normal access semantics, then
-delayed triggers let DM rules inspect the updated fields and add side effects;
-there is no second DM address decoder. The map selects
-`CSR_OKAY` with zero read data for addresses outside the declared map, so
-unimplemented DMI registers read as zero and ignore writes as required by the
-debug specification. Every declared DM register has explicit read and write
-behavior, so the fallback is reached only for an unmapped address without
-requiring a second address-membership decoder.
+`dmihardreset` changes the DTM epoch, clears its visible request state, and
+generates a pulse in the DMI clock domain. Responses from an older epoch are
+drained but cannot modify current DTM state.
 
-## Minimal Debug Module profile
+## Debug Module Profile
 
-The DM implements a type-parameterized vector of RV32 harts. `HARTSELLEN` is
-derived from the configured vector size, out-of-range encodings report
-`anynonexistent`/`allnonexistent`, and `HALTSUM0` reports the first 32 harts.
-Hart array masks are not implemented, so `hasel` remains zero. There is no
-authentication block or Program Buffer. Mandatory Access Register commands
-are routed to the selected `RISCVDMHartPort_ifc` for GPRs and CSRs. The hart
-integration supplies current running/halted/unavailable status, accepts
-halt/resume/reset-acknowledge requests, and services the typed abstract
-register client.
+`mkRISCVDM` implements a type-parameterized vector of RV32 harts. `HARTSELLEN`
+is derived from the configured vector size, out-of-range selections report
+nonexistent, and `HALTSUM0` reports the first 32 harts. Hart array masks,
+authentication, and a Program Buffer are not implemented.
 
-`mkRISCVJTAGDebug` carries the same hart-count parameter through the JTAG/DTM
-wrapper. The SCOoOTER integration flattens its configurable
-`Vector#(NUM_CPU, Vector#(NUM_THREADS, ...))` as
-`cpu * NUM_THREADS + thread` and drains the selected hart's ROB plus the shared
-store buffer before reporting it halted.
+Each `RISCVDMHartPort_ifc`:
 
-The SCOoOTER hart integration implements DCSR stepping at the architectural
-commit boundary. A step-resume allows one instruction to retire, redirects to
-its architectural next PC to invalidate younger speculative work, drains the
-store buffer, and re-enters debug with `dcsr.cause=step`. When `dcsr.ebreakm`
-is set, a machine-mode `ebreak` is intercepted at Commit instead of being sent
-to `mtvec`; `dpc` identifies the breakpoint instruction and
-`dcsr.cause=ebreak`. This supports OpenOCD/GDB software breakpoints in writable
-RAM without a Program Buffer. Defining `SCOOOTER_DEBUG` adds these interfaces
-and internal paths to SCOoOTER; the core is built without them otherwise.
+- supplies current running, halted, and unavailable status;
+- accepts halt, resume, and reset-acknowledge requests; and
+- services typed abstract GPR and CSR accesses while halted.
 
-See [`scoooter_debug_hardware.md`](scoooter_debug_hardware.md) for a detailed
-description of the corresponding SCOoOTER pipeline, register-file, and
-multi-hart hardware changes and the rationale for each one.
+The supported Debug Module registers use their standard DMI word indices. The
+internal BlueCSR map converts those indices to byte offsets:
 
-System Bus Access implements version 1 with a 32-bit address and 32-bit AXI
-data path. Byte, halfword, and word accesses are supported by aligning AXI
-transactions and generating or selecting the appropriate byte lanes.
-`sbreadonaddr`, `sbreadondata`, and `sbautoincrement` are supported.
-Alignment, unsupported-size, busy, and AXI response failures are reported
-through the sticky `sbbusyerror` and `sberror` fields. A transaction already
-accepted by AXI is drained and discarded if `dmactive` resets the DM.
+| DMI register | Byte offset |
+|---|---:|
+| `DATA0` | `0x010` |
+| `DMCONTROL` | `0x040` |
+| `DMSTATUS` | `0x044` |
+| `ABSTRACTCS` | `0x058` |
+| `COMMAND` | `0x05c` |
+| `SBCS` | `0x0e0` |
+| `SBADDRESS0` | `0x0e4` |
+| `SBDATA0` | `0x0f0` |
+| `HALTSUM0` | `0x100` |
 
-## AXI4-Lite mapping
+Unimplemented DMI registers read as zero and ignore writes, as required by the
+0.13.2 specification.
 
-DMI addresses are word indices. The bridge produces the AXI byte address
-`zeroExtend(dmi_address) << 2`, uses full write strobes, and permits one AXI
-transaction at a time. AXI `OKAY` and `EXOKAY` map to DMI success; `SLVERR`
-and `DECERR` map to the sticky DMI failure response.
+## System Bus Access
 
-`dmihardreset` changes an epoch tag and forgets the outstanding transaction in
-the DTM. An AXI response from the old epoch is still drained but cannot modify
-new DTM state. Since AXI4-Lite has no cancellation operation, a target that
-never completes an already accepted transaction still requires coordinated
-system/interconnect reset. The AXI-domain `hard_reset` pulse is exposed for
-that purpose.
+System Bus Access version 1 uses a 32-bit address and 32-bit data path. Byte,
+halfword, and word transfers are supported. The DM aligns memory requests,
+sets the appropriate byte lanes, and shifts narrow read data back into the low
+bits of `SBDATA0`.
+
+`sbreadonaddr`, `sbreadondata`, and `sbautoincrement` are supported. Alignment,
+unsupported-size, and busy failures are reported through the sticky
+`sbbusyerror` and `sberror` fields.
+
+The memory interface uses `MemoryRequest#(32, 32)` and
+`MemoryResponse#(32)`. That response type has no error indication, so
+interconnect error reporting must be added by a bus-specific wrapper if the
+integration requires it.
 
 ## Verification
 
 Run the focused simulations with:
 
 ```bash
-make -C hdl RUN_TEST=TestRISCVDMIAXI4Lite sim
 make -C hdl RUN_TEST=TestRISCVJTAGDTM sim
 make -C hdl RUN_TEST=TestRISCVDM sim
 make -C hdl RUN_TEST=TestRISCVDMMulti sim
 make -C hdl RUN_TEST=TestBlueCSRUnmapped sim
 ```
 
-The tests cover DTMCS packing, successful DMI access, sticky busy and error,
-`dmireset`, `dmihardreset` with a stale response, AXI address/data/error
-mapping, clock-domain crossing, reserved-instruction BYPASS, and IDCODE
-restoration through Test-Logic-Reset. The DM test additionally covers
-activation, hart halt/resume, abstract GPR reads and writes, unimplemented DMI
-registers, byte/halfword/word SBA reads and writes, auto-increment, alignment faults, and AXI
-errors. The multi-hart test covers selection, per-hart halt and abstract-command
-routing, `HALTSUM0`, and nonexistent selectors. The BlueCSR test checks the
-legacy and configurable fallback responses for unmatched accesses.
+The tests cover:
 
-`scoooter-bluej-demo/test/TestScoooterSoCOOCDTB.bsv` connects the full DTM/DM to a SCOoOTER core, a read-only
-boot ROM at `0x00000000`, and writable executable RAM at `0x80000000`.
-`scoooter-bluej-demo/test/scoooter_gdb.gdb` loads an ELF through SBA and verifies GDB `stepi`,
-software-breakpoint entry, breakpoint removal, and stepping over the restored
-instruction. The complete standalone build and OpenOCD configuration are in
-[`scoooter-bluej-demo/`](../scoooter-bluej-demo/).
+- DTMCS packing, DMI reads and writes, clock-domain crossing,
+  `dmihardreset`, BYPASS, and IDCODE restoration;
+- DM activation, halt/resume, abstract GPR access, unmapped DMI registers,
+  byte/halfword/word SBA access, auto-increment, and alignment faults;
+- multi-hart selection, per-hart request routing, `HALTSUM0`, and nonexistent
+  selectors; and
+- BlueCSR fallback responses for unmapped accesses.

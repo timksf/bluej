@@ -1,14 +1,11 @@
 package TestRISCVDMMulti;
 
 import ClientServer :: *;
-import Connectable :: *;
 import GetPut :: *;
 import StmtFSM :: *;
 import Vector :: *;
 
-import AXI4_Lite_Master :: *;
-import AXI4_Lite_Slave :: *;
-import AXI4_Lite_Types :: *;
+import RISCV_DMI :: *;
 import RISCV_DM :: *;
 
 import TestHelper :: *;
@@ -18,16 +15,6 @@ typedef 3 HartCount;
 module [Module] mkTestRISCVDMMulti(TestHandler);
 
     RISCVDM_ifc#(HartCount) dut <- mkRISCVDM;
-
-    AXI4_Lite_Master_Rd#(32, 32) i_dmi_rd <- mkAXI4_Lite_Master_Rd(2);
-    AXI4_Lite_Master_Wr#(32, 32) i_dmi_wr <- mkAXI4_Lite_Master_Wr(2);
-    AXI4_Lite_Slave_Rd#(32, 32) i_system_rd <- mkAXI4_Lite_Slave_Rd(2);
-    AXI4_Lite_Slave_Wr#(32, 32) i_system_wr <- mkAXI4_Lite_Slave_Wr(2);
-
-    mkConnection(i_dmi_rd.fab, dut.s_dmi_rd);
-    mkConnection(i_dmi_wr.fab, dut.s_dmi_wr);
-    mkConnection(dut.m_system_rd, i_system_rd.fab);
-    mkConnection(dut.m_system_wr, i_system_wr.fab);
 
     Vector#(HartCount, Reg#(Bool)) rg_halted <- replicateM(mkReg(False));
     Vector#(HartCount, Reg#(Bool)) rg_running <- replicateM(mkReg(True));
@@ -46,16 +33,16 @@ module [Module] mkTestRISCVDMMulti(TestHandler);
 
     function Stmt dmi_write(Bit#(32) address, Bit#(32) data);
         return seq
-            i_dmi_wr.request.put(AXI4_Lite_Write_Rq_Pkg {
-                addr: address,
-                data: data,
-                strb: 4'hf,
-                prot: UNPRIV_SECURE_DATA
+            dut.dmi.request.put(DMI_Request_t {
+                address: truncate(address >> 2),
+                data:    data,
+                op:      DMI_WRITE,
+                epoch:   0
             });
             action
-                let response <- i_dmi_wr.response.get;
-                if(response.resp != OKAY) begin
-                    $display("DMI write at %08x failed: ", address, fshow(response.resp));
+                let response <- dut.dmi.response.get;
+                if(response.error) begin
+                    $display("DMI write at %08x failed", address);
                     rg_failed <= True;
                 end
             endaction
@@ -64,15 +51,17 @@ module [Module] mkTestRISCVDMMulti(TestHandler);
 
     function Stmt expect_dmi_read(Bit#(32) address, Bit#(32) expected, Bit#(32) mask);
         return seq
-            i_dmi_rd.request.put(AXI4_Lite_Read_Rq_Pkg {
-                addr: address,
-                prot: UNPRIV_SECURE_DATA
+            dut.dmi.request.put(DMI_Request_t {
+                address: truncate(address >> 2),
+                data:    0,
+                op:      DMI_READ,
+                epoch:   0
             });
             action
-                let response <- i_dmi_rd.response.get;
-                if(response.resp != OKAY || (response.data & mask) != (expected & mask)) begin
-                    $display("DMI read mismatch at %08x: expected %08x mask %08x, got %08x ",
-                             address, expected, mask, response.data, fshow(response.resp));
+                let response <- dut.dmi.response.get;
+                if(response.error || (response.data & mask) != (expected & mask)) begin
+                    $display("DMI read mismatch at %08x: expected %08x mask %08x, got %08x",
+                             address, expected, mask, response.data);
                     rg_failed <= True;
                 end
             endaction

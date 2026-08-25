@@ -1,30 +1,18 @@
 package TestRISCVDM;
 
-import Connectable :: *;
 import GetPut :: *;
 import ClientServer :: *;
+import Memory :: *;
 import StmtFSM :: *;
 
 import TestHelper :: *;
 
-import AXI4_Lite_Types :: *;
-import AXI4_Lite_Master :: *;
-import AXI4_Lite_Slave :: *;
+import RISCV_DMI :: *;
 import RISCV_DM :: *;
 
 module [Module] mkTestRISCVDM(TestHandler);
 
     RISCVDM_ifc#(1) dut <- mkRISCVDM;
-
-    AXI4_Lite_Master_Rd#(32, 32) i_dmi_rd <- mkAXI4_Lite_Master_Rd(2);
-    AXI4_Lite_Master_Wr#(32, 32) i_dmi_wr <- mkAXI4_Lite_Master_Wr(2);
-    AXI4_Lite_Slave_Rd#(32, 32) i_system_rd <- mkAXI4_Lite_Slave_Rd(2);
-    AXI4_Lite_Slave_Wr#(32, 32) i_system_wr <- mkAXI4_Lite_Slave_Wr(2);
-
-    mkConnection(i_dmi_rd.fab, dut.s_dmi_rd);
-    mkConnection(i_dmi_wr.fab, dut.s_dmi_wr);
-    mkConnection(dut.m_system_rd, i_system_rd.fab);
-    mkConnection(dut.m_system_wr, i_system_wr.fab);
 
     Reg#(Bool) rg_started          <- mkReg(False);
     Reg#(Bool) rg_failed           <- mkReg(False);
@@ -43,16 +31,16 @@ module [Module] mkTestRISCVDM(TestHandler);
 
     function Stmt dmi_write(Bit#(32) address, Bit#(32) data);
         return seq
-            i_dmi_wr.request.put(AXI4_Lite_Write_Rq_Pkg {
-                addr: address,
-                data: data,
-                strb: 4'hf,
-                prot: UNPRIV_SECURE_DATA
+            dut.dmi.request.put(DMI_Request_t {
+                address: truncate(address >> 2),
+                data:    data,
+                op:      DMI_WRITE,
+                epoch:   0
             });
             action
-                let response <- i_dmi_wr.response.get;
-                if(response.resp != OKAY) begin
-                    $display("DMI write at %08x returned ", address, fshow(response.resp));
+                let response <- dut.dmi.response.get;
+                if(response.error) begin
+                    $display("DMI write at %08x failed", address);
                     rg_failed <= True;
                 end
             endaction
@@ -61,15 +49,17 @@ module [Module] mkTestRISCVDM(TestHandler);
 
     function Stmt expect_dmi_read(Bit#(32) address, Bit#(32) expected, Bit#(32) mask);
         return seq
-            i_dmi_rd.request.put(AXI4_Lite_Read_Rq_Pkg {
-                addr: address,
-                prot: UNPRIV_SECURE_DATA
+            dut.dmi.request.put(DMI_Request_t {
+                address: truncate(address >> 2),
+                data:    0,
+                op:      DMI_READ,
+                epoch:   0
             });
             action
-                let response <- i_dmi_rd.response.get;
-                if(response.resp != OKAY || (response.data & mask) != (expected & mask)) begin
-                    $display("DMI read mismatch at %08x: expected %08x mask %08x, got %08x ",
-                             address, expected, mask, response.data, fshow(response.resp));
+                let response <- dut.dmi.response.get;
+                if(response.error || (response.data & mask) != (expected & mask)) begin
+                    $display("DMI read mismatch at %08x: expected %08x mask %08x, got %08x",
+                             address, expected, mask, response.data);
                     rg_failed <= True;
                 end
             endaction
@@ -100,32 +90,32 @@ module [Module] mkTestRISCVDM(TestHandler);
 
         // The BlueCSR action queue accepts successive mapped writes.
         action
-            i_dmi_wr.request.put(AXI4_Lite_Write_Rq_Pkg {
-                addr: 32'h010,
-                data: 32'h11111111,
-                strb: 4'hf,
-                prot: UNPRIV_SECURE_DATA
+            dut.dmi.request.put(DMI_Request_t {
+                address: 7'h04,
+                data:    32'h11111111,
+                op:      DMI_WRITE,
+                epoch:   0
             });
         endaction
         action
-            i_dmi_wr.request.put(AXI4_Lite_Write_Rq_Pkg {
-                addr: 32'h010,
-                data: 32'h22222222,
-                strb: 4'hf,
-                prot: UNPRIV_SECURE_DATA
+            dut.dmi.request.put(DMI_Request_t {
+                address: 7'h04,
+                data:    32'h22222222,
+                op:      DMI_WRITE,
+                epoch:   0
             });
         endaction
         action
-            let response <- i_dmi_wr.response.get;
-            if(response.resp != OKAY) begin
-                $display("First queued DATA0 write failed: ", fshow(response.resp));
+            let response <- dut.dmi.response.get;
+            if(response.error) begin
+                $display("First queued DATA0 write failed");
                 rg_failed <= True;
             end
         endaction
         action
-            let response <- i_dmi_wr.response.get;
-            if(response.resp != OKAY) begin
-                $display("Second queued DATA0 write failed: ", fshow(response.resp));
+            let response <- dut.dmi.response.get;
+            if(response.error) begin
+                $display("Second queued DATA0 write failed");
                 rg_failed <= True;
             end
         endaction
@@ -205,12 +195,12 @@ module [Module] mkTestRISCVDM(TestHandler);
         dmi_write(32'h0e4, 32'h00002000);
         dmi_write(32'h0f0, 32'h11223344);
         action
-            let request <- i_system_wr.request.get;
-            if(request.addr != 32'h00002000 || request.data != 32'h11223344 || request.strb != 4'hf) begin
+            let request <- dut.m_system.request.get;
+            if(!request.write || request.address != 32'h00002000 || request.data != 32'h11223344 || request.byteen != 4'hf) begin
                 $display("SBA write request mismatch: ", fshow(request));
                 rg_failed <= True;
             end
-            i_system_wr.response.put(AXI4_Lite_Write_Rs_Pkg { resp: OKAY });
+            dut.m_system.response.put(MemoryResponse { data: 0 });
         endaction
         expect_dmi_read(32'h0e4, 32'h00002004, 32'hffffffff);
 
@@ -218,15 +208,12 @@ module [Module] mkTestRISCVDM(TestHandler);
         dmi_write(32'h0e0, 32'h00150000);
         dmi_write(32'h0e4, 32'h00003000);
         action
-            let request <- i_system_rd.request.get;
-            if(request.addr != 32'h00003000) begin
+            let request <- dut.m_system.request.get;
+            if(request.write || request.address != 32'h00003000) begin
                 $display("SBA read request mismatch: ", fshow(request));
                 rg_failed <= True;
             end
-            i_system_rd.response.put(AXI4_Lite_Read_Rs_Pkg {
-                data: 32'h55667788,
-                resp: OKAY
-            });
+            dut.m_system.response.put(MemoryResponse { data: 32'h55667788 });
         endaction
         expect_dmi_read(32'h0f0, 32'h55667788, 32'hffffffff);
         expect_dmi_read(32'h0e4, 32'h00003004, 32'hffffffff);
@@ -236,12 +223,12 @@ module [Module] mkTestRISCVDM(TestHandler);
         dmi_write(32'h0e4, 32'h00003103);
         dmi_write(32'h0f0, 32'h000000a5);
         action
-            let request <- i_system_wr.request.get;
-            if(request.addr != 32'h00003100 || request.data != 32'ha5000000 || request.strb != 4'h8) begin
+            let request <- dut.m_system.request.get;
+            if(!request.write || request.address != 32'h00003100 || request.data != 32'ha5000000 || request.byteen != 4'h8) begin
                 $display("SBA byte write request mismatch: ", fshow(request));
                 rg_failed <= True;
             end
-            i_system_wr.response.put(AXI4_Lite_Write_Rs_Pkg { resp: OKAY });
+            dut.m_system.response.put(MemoryResponse { data: 0 });
         endaction
         expect_dmi_read(32'h0e4, 32'h00003104, 32'hffffffff);
 
@@ -249,15 +236,12 @@ module [Module] mkTestRISCVDM(TestHandler);
         dmi_write(32'h0e0, 32'h00120000);
         dmi_write(32'h0e4, 32'h00003202);
         action
-            let request <- i_system_rd.request.get;
-            if(request.addr != 32'h00003200) begin
+            let request <- dut.m_system.request.get;
+            if(request.write || request.address != 32'h00003200) begin
                 $display("SBA halfword read request mismatch: ", fshow(request));
                 rg_failed <= True;
             end
-            i_system_rd.response.put(AXI4_Lite_Read_Rs_Pkg {
-                data: 32'ha1b2c3d4,
-                resp: OKAY
-            });
+            dut.m_system.response.put(MemoryResponse { data: 32'ha1b2c3d4 });
         endaction
         expect_dmi_read(32'h0f0, 32'h0000a1b2, 32'hffffffff);
 
@@ -267,19 +251,6 @@ module [Module] mkTestRISCVDM(TestHandler);
         expect_dmi_read(32'h0e0, 32'h00003000, 32'h00007000);
         dmi_write(32'h0e0, 32'h00057000);
         expect_dmi_read(32'h0e0, 32'h00000000, 32'h00007000);
-
-        // AXI errors map to the SBA "other" error code.
-        dmi_write(32'h0e4, 32'h00004000);
-        dmi_write(32'h0f0, 32'h89abcdef);
-        action
-            let request <- i_system_wr.request.get;
-            if(request.addr != 32'h00004000) begin
-                $display("SBA error-path write address mismatch: ", fshow(request));
-                rg_failed <= True;
-            end
-            i_system_wr.response.put(AXI4_Lite_Write_Rs_Pkg { resp: SLVERR });
-        endaction
-        expect_dmi_read(32'h0e0, 32'h00007000, 32'h00007000);
 
         action
             if(rg_failed) begin
