@@ -7,10 +7,16 @@ import StmtFSM :: *;
 
 import TestHelper :: *;
 
+import BlueCSRCore :: *;
+import BlueCSRExport :: *;
+
 import RISCV_DMI :: *;
 import RISCV_DM :: *;
 
 module [Module] mkTestRISCVDM(TestHandler);
+
+    RegMapDoc_t#(32) doc <- doc_blue_csr_markdown(riscv_dm_register_map);
+    messageM(doc.reg_defs);
 
     RISCVDM_ifc#(1) dut <- mkRISCVDM;
 
