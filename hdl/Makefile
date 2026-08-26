@@ -73,13 +73,13 @@ VERILOG_INC:=$(CURDIR)/src/rtl/lib:$(CURDIR)/src/rtl/lib/unisim
 
 # custom TCL flow
 PART=xcku3p-ffvb676-2-e
-CONSTRAINTS=$(CURDIR)/src/bluej_simple.xdc
-SCRIPT=$(CURDIR)/src/synth.tcl
+CONSTRAINTS=$(CURDIR)/src/fpga/bluej_simple.xdc
+SCRIPT=$(CURDIR)/src/fpga/synth.tcl
 
 # Public smoke/default FPGA flows
 SMOKE_TESTS ?= TestTAP TestSystemAPI TestBus
 FPGA_TOP_MODULE ?= mkFPGATestSimpleTop
-FPGA_MAIN_MODULE ?= FPGATop
+FPGA_MAIN_MODULE ?= fpga/FPGATop
 
 .PHONY: smoke fpga-verilog fpga-vivado
 smoke:
