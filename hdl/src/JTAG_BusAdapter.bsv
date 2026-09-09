@@ -51,6 +51,11 @@ instance DefaultValue#(JTAG_BusControl_Simple#(aw, dw));
     };
 endinstance
 
+interface JTAG_BusAdapterCore_ifc#(numeric type aw, numeric type dw);
+    interface JTAG_Reg_ifc#(JTAG_BusControl_Simple#(aw, dw)) jtag_bus_ctrl;
+    interface Client#(BusRequest#(aw, dw), BusResponse#(dw)) bus;
+endinterface
+
 interface JTAG_BusAdapter_ifc#(numeric type aw, numeric type dw);
     interface Client#(BusRequest#(aw, dw), BusResponse#(dw)) bus;
 endinterface
@@ -61,8 +66,7 @@ endinterface
     - no support for congestion detection
     ...
 */
-module [JTAGSystem#(n, iw)] mkJTAG_BusAdapter#(JTAGInstruction_t#(iw) instr, Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(aw, dw));
-
+module mkJTAG_BusAdapterCore#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapterCore_ifc#(aw, dw));
     SyncFIFOIfc#(BusRequest#(aw, dw))      f_sync_req  <- mkSyncFIFOFromCC(2, bus_clk);
     SyncFIFOIfc#(BusResponse#(dw))         f_sync_resp <- mkSyncFIFOToCC(2, bus_clk, bus_rst);
 
@@ -70,15 +74,12 @@ module [JTAGSystem#(n, iw)] mkJTAG_BusAdapter#(JTAGInstruction_t#(iw) instr, Clo
 
     //this jtag register is used both for issuing requests and reading responses
     //requests are shifted in while responses are "captured"
-    //ignore scans must not write jrg_ctrl_i, so this needs a custom endpoint rather than jtag_reg_rw
-    JTAG_Reg_ifc#(JTAG_BusControl_Simple#(aw, dw))      jrg_bus_ctrl_jtag <- mkJTAGReg(jrg_ctrl_i);
-    JTAGRegAccess_ifc#(JTAG_BusControl_Simple#(aw, dw)) jrg_bus_ctrl      <- jtag_endpoint(jrg_bus_ctrl_jtag, instr);
+    JTAG_Reg_ifc#(JTAG_BusControl_Simple#(aw, dw)) jrg_bus_ctrl <- mkJTAGReg(jrg_ctrl_i);
 
     //we queue the request first as that would get lost otherwise, the response can remain in the fifo another cycle
     (* descending_urgency="rqueue_req, rdeq_resp" *)
-    rule rqueue_req;
-        let request <- jrg_bus_ctrl.updated();
-        //TODO: could insert address checking w/ error indication
+    rule rqueue_req if(jrg_bus_ctrl.wr_o() && !jrg_bus_ctrl.reg_o().ignore);
+        let request = jrg_bus_ctrl.reg_o();
         if(!request.ignore) begin
             let bus_req = BusRequest {
                 write_not_read: request.write_not_read,
@@ -102,9 +103,16 @@ module [JTAGSystem#(n, iw)] mkJTAG_BusAdapter#(JTAGInstruction_t#(iw) instr, Clo
         response.error      = False; //could indicate bus error here
         jrg_ctrl_i <= response;
     endrule
+    
+    interface jtag_bus_ctrl = jrg_bus_ctrl;
+    interface bus           = toGPClient(toGet(f_sync_req), toPut(f_sync_resp));
+endmodule
 
-    interface bus = toGPClient(toGet(f_sync_req), toPut(f_sync_resp));
+module [JTAGSystem#(n, iw)] mkJTAG_BusAdapter#(JTAGInstruction_t#(iw) instr, Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(aw, dw));
+    JTAG_BusAdapterCore_ifc#(aw, dw)                    i_core          <- mkJTAG_BusAdapterCore(bus_clk, bus_rst);
+    JTAGRegAccess_ifc#(JTAG_BusControl_Simple#(aw, dw)) jrg_bus_ctrl    <- jtag_endpoint(i_core.jtag_bus_ctrl, instr);
 
+    interface bus = i_core.bus;
 endmodule
 
 endpackage
