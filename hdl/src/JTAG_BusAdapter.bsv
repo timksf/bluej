@@ -48,8 +48,7 @@ instance DefaultValue#(JTAG_BusControl_t#(aw, dw));
         write:          False,
         addr:           0,
         data:           0,
-        strb:           0,
-        resp:           OKAY
+        strb:           0    
     };
 endinstance
 
