@@ -95,7 +95,7 @@ module mkJTAG_BusAdapterCore#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapterCore_
 
     //drscan despite running request
     rule r_drop_req if(jrg_bus_ctrl.wr_o() && !jrg_bus_ctrl.reg_o().ignore && jrg_ctrl_i.busy);
-        jrg_ctrl_i.dropped <= True;
+        jrg_ctrl_i.dropped <= True; //this weird syntax work as long as we only write one field in a rule
     endrule
 
     rule r_deq_resp;
