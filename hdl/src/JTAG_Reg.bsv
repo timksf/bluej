@@ -17,8 +17,8 @@ interface JTAG_Reg_ifc#(type t);
     method Bool         wr_o();
     method Bool         cap_o();
 
-    method Bit#(1)     tdo();
-    method Action      tdi(Bit#(1) t);
+    method Bit#(1)      tdo();
+    method Action       tdi(Bit#(1) t);
     interface JTAG_Ctrl_Dn_ifc ctrl;
 
 endinterface
@@ -30,8 +30,8 @@ interface JTAG_Instruction_Reg_ifc#(type t);
 
     method Action       test_logic_reset(Bool active);
 
-    method Bit#(1)     tdo();
-    method Action      tdi(Bit#(1) t);
+    method Bit#(1)      tdo();
+    method Action       tdi(Bit#(1) t);
     interface JTAG_Ctrl_Dn_ifc ctrl;
 
 endinterface
