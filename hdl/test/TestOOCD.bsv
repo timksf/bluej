@@ -18,7 +18,7 @@ import ClockUtil :: *;
 
 interface MyJTAGSystem_ifc;
     method ActionValue#(Bit#(32)) user_reg0();
-    interface Client#(BusRequest#(32, 32), BusResponse#(32)) bus;
+    interface Client#(BusRequest_t#(32, 32), BusResponse_t#(32)) bus;
 endinterface
 
 module [JTAGSystem#(2, `IR_WIDTH)] oocdJTAGSystem#(Clock bus_clk, Reset bus_rst)(MyJTAGSystem_ifc);
@@ -89,8 +89,8 @@ module [Module] mkTestOOCD(TestHandler);
         let req <- tap.device_ifc.bus.request.get();
         $display("[%0t] Got Bus request: ", $time, fshow(req));
         bram.portA.request.put(BRAMRequest {
-            write: req.write_not_read,
-            responseOnWrite: False,
+            write: req.write,
+            responseOnWrite: True,
             address: req.addr,
             datain: req.data
         });
@@ -98,7 +98,7 @@ module [Module] mkTestOOCD(TestHandler);
 
     rule rbus_resp;
         let resp <- bram.portA.response.get();
-        tap.device_ifc.bus.response.put(BusResponse { data: resp });
+        tap.device_ifc.bus.response.put(BusResponse_t { data: resp, resp: OKAY });
         $display("[%0t] BRAM response: ", $time, fshow(resp));
     endrule
 

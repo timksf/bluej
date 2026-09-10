@@ -3,7 +3,7 @@ from py_openocd import OpenOCDTclClient
 
 with OpenOCDTclClient() as runner:
     jtag = BlueJOpenOCD(runner=runner)
-    jtag.bus_write32(0x8, 0x12345678)
+    jtag.bus_write32(0x8, 0x12345678, strb=0xF)
 
     a = 0
     for i in range(32):
