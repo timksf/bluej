@@ -53,7 +53,7 @@ instance DefaultValue#(JTAG_BusControl_t#(aw, dw));
 endinstance
 
 interface JTAG_BusAdapterCore_ifc#(numeric type aw, numeric type dw);
-    interface JTAG_Reg_ifc#(JTAG_BusControl_t#(aw, dw)) jtag_bus_ctrl;
+    interface IJTAG_ifc scan;
     interface Client#(BusRequest_t#(aw, dw), BusResponse_t#(dw)) bus;
 endinterface
 
@@ -110,13 +110,13 @@ module mkJTAG_BusAdapterCore#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapterCore_
         jrg_ctrl_i <= response;
     endrule
     
-    interface jtag_bus_ctrl = jrg_bus_ctrl;
+    interface scan = jrg_bus_ctrl.scan;
     interface bus           = toGPClient(toGet(f_sync_req), toPut(f_sync_resp));
 endmodule
 
 module [JTAGSystem#(n, iw)] mkJTAG_BusAdapter#(JTAGInstruction_t#(iw) instr, Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(aw, dw));
     JTAG_BusAdapterCore_ifc#(aw, dw)               i_core       <- mkJTAG_BusAdapterCore(bus_clk, bus_rst);
-    JTAGRegAccess_ifc#(JTAG_BusControl_t#(aw, dw)) jrg_bus_ctrl <- jtag_endpoint(i_core.jtag_bus_ctrl, instr);
+    jtag_scan_endpoint(i_core.scan, instr);
 
     interface bus = i_core.bus;
 endmodule

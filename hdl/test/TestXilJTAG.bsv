@@ -45,7 +45,7 @@ module [Module] mkTestXilJTAG(TestHandler);
     let jtag_sime2 <- mkJTAG_SIME2("xcku3p", clocked_by tck);
     
     let bscan_cfg = BSCANE2_Config { p_DISABLE_JTAG: False, p_JTAG_CHAIN: 3 };
-    let bscane2 <- mkBSCANE2_BlueJ_(bscan_cfg, tck_inv, vec(as_read_only(user_reg.tdo)), clocked_by tck);
+    let bscane2 <- mkBSCANE2_BlueJ_(bscan_cfg, tck_inv, vec(as_read_only(user_reg.scan.tdo)), clocked_by tck);
 
     mkConnection(toGet(wtck),               toPut(jtag_stim.ext_tck));
     mkConnection(toGet(wtrst),              toPut(jtag_stim.ext_trst));
@@ -59,8 +59,8 @@ module [Module] mkTestXilJTAG(TestHandler);
     mkConnection(toGet(jtag_sime2.tdo),     toPut(jtag_stim.int_tdo));
 
     //connect user register to BSCANE2
-    jtagConnect(bscane2.tap_ctrl, user_reg.ctrl, 0);
-    mkConnection(toGet(bscane2.int_tdi), toPut(user_reg.tdi));
+    jtagConnect(bscane2.tap_ctrl, user_reg.scan.ctrl, 0);
+    mkConnection(toGet(bscane2.int_tdi), toPut(user_reg.scan.tdi));
 
     Stmt s = seq
         $display("Hello");

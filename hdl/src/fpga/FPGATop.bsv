@@ -54,13 +54,7 @@ module mkFPGATestSimple(FPGATest_ifc);
     Reg#(Bit#(32)) rg_div <- mkReg(0);
     Reg#(Bit#(`N_LEDS)) rg_leds <- mkReg(0);
 
-    connect_bscane2_to_bluej(bscane2, jtag_led_ctrl.ctrl);
-
-    //tck domain
-    rule rjtag_data;
-        jtag_led_ctrl.tdi(bscane2.tdi());
-        bscane2.tdo(jtag_led_ctrl.tdo());
-    endrule
+    connect_bscane2_to_target(bscane2, jtag_led_ctrl.scan);
     
     (* descending_urgency="rupd_ctrl, rdiv" *)
     rule rupd_ctrl if(jtag_led_ctrl.wr_o());
@@ -104,13 +98,7 @@ module mkFPGATestSimplestTop(FPGATest_ifc);
 
     Reg#(Bit#(29)) rg_count <- mkReg(0);
 
-    connect_bscane2_to_bluej(bscane2, jreg.ctrl);
-
-    //tck domain, BSCANE2 data connection
-    rule rjtag_data;
-        jreg.tdi(bscane2.tdi());
-        bscane2.tdo(jreg.tdo());
-    endrule
+    connect_bscane2_to_target(bscane2, jreg.scan);
     
     rule rdiv;
         rg_count <= rg_count + 1;
@@ -128,7 +116,7 @@ endmodule
 //         The FSM is notified of an updated configuration in the BRAM or it periodically polls from the BRAM.
 //     */
 
-//     let bscane2 <- mkBSCANE2_BlueJ(bscan_cfg, tck_inv, vec(as_read_only(user_reg.tdo)));
+//     let bscane2 <- mkBSCANE2_BlueJ(bscan_cfg, tck_inv, vec(as_read_only(user_reg.scan.tdo)));
 
 //     JTAG_BusAdapter_ifc#(32, 32) ifc <- mkJTAG_BusAdapter(bus_clk, bus_rst);
 

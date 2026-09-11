@@ -124,6 +124,7 @@ Library modules and FPGA examples in `hdl/src`:
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_rst_to_idcode` | Selects IDCODE after TAP reset. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_rst_to_bypass` | Selects BYPASS after TAP reset. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_enable_debug` | Enables TAP debug output. |
+| [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_scan_endpoint` | Registers a standard scan target at a specified instruction. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_endpoint` | Registers a data-register endpoint at a specified instruction. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_ro` | Adds a read-only data-register endpoint. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_wo` | Adds a write-only data-register endpoint with update notification. |
@@ -138,7 +139,8 @@ Library modules and FPGA examples in `hdl/src`:
 | [JTAG_BusAdapter.bsv](hdl/src/JTAG_BusAdapter.bsv) | `mkJTAG_BusAdapter` | Registers the bus adapter as an instruction-selected system endpoint. |
 | [JTAG2AXI.bsv](hdl/src/JTAG2AXI.bsv) | `mkJTAG2AXI` | Converts bus-adapter requests into AXI4-Lite reads and writes with one outstanding transaction. |
 | [JTAG_Xilinx.bsv](hdl/src/JTAG_Xilinx.bsv) | `mkBSCANE2_BlueJ_` | Wraps BSCANE2 as a single-endpoint TAP controller interface. |
-| [JTAG_Xilinx.bsv](hdl/src/JTAG_Xilinx.bsv) | `connect_bscane2_to_bluej` | Forwards BSCANE2 capture, shift, update, and select signals to a BlueJ endpoint. |
+| [JTAG_Xilinx.bsv](hdl/src/JTAG_Xilinx.bsv) | `connect_bscane2_to_target` | Forwards BSCANE2 control and TDI/TDO to a scan target. |
+| [JTAG_Xilinx.bsv](hdl/src/JTAG_Xilinx.bsv) | `connect_bscane2_ctrl` | Forwards BSCANE2 capture, shift, update, and select signals to a BlueJ endpoint. |
 | [JTAG_Xilinx.bsv](hdl/src/JTAG_Xilinx.bsv) | `mkBSCAN2JTAG` | Decodes a Xilinx USER-chain tunnel into nested-TAP signals and clocks. |
 | [ClockUtil.bsv](hdl/src/ClockUtil.bsv) | `pack_clock` | Exposes a Bluespec clock as a single-bit signal. |
 | [ClockUtil.bsv](hdl/src/ClockUtil.bsv) | `unpack_clock` | Converts a single-bit signal into a Bluespec clock. |
@@ -312,3 +314,31 @@ library.
 
 ## License
 MIT.
+
+### Scan interface migration
+
+Scan registers (including instruction and synchronized registers) expose an
+`IJTAG_ifc scan`: replace `reg.ctrl`, `reg.tdi`, and `reg.tdo` with
+`reg.scan.ctrl`, `reg.scan.tdi`, and `reg.scan.tdo`. Register access (`reg_o`,
+`wr_o`, `cap_o`) and instruction `test_logic_reset` remain separate.
+
+Bus adapter cores and JTAG-to-AXI interfaces expose `scan` instead of the full
+`jtag_bus_ctrl` or `jtag_ctrl` register. Register a scan-only target in a
+`JTAGSystem` with `jtag_scan_endpoint(adapter.scan, instr)`; `jtag_endpoint(reg,
+instr)` still provides register update access. Collected `IJTAG_` entries now
+contain `instr` and `scan` instead of wrapped TDI/TDO and control fields.
+
+For a direct BSCANE2 connection, use:
+
+```bsv
+connect_bscane2_to_target(bscane2, adapter.scan);
+```
+
+For custom serial chains, rename `connect_bscane2_to_bluej` to
+`connect_bscane2_ctrl` and pass each target's `scan.ctrl`; retain your independent
+TDI/TDO wiring. The full helper composes this control helper with direct TDI/TDO
+forwarding. Neither helper adds clock crossings or resets: retain the existing
+TCK clock and reset setup. Controllers retain their selection vector, while each
+`IJTAG_ifc` target accepts one selection input through `scan.ctrl.sel`.
+
+Downstream repositories must migrate these API uses separately.

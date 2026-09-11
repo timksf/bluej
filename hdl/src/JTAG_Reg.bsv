@@ -17,9 +17,7 @@ interface JTAG_Reg_ifc#(type t);
     method Bool         wr_o();
     method Bool         cap_o();
 
-    method Bit#(1)      tdo();
-    method Action       tdi(Bit#(1) t);
-    interface JTAG_Ctrl_Dn_ifc ctrl;
+    interface IJTAG_ifc scan;
 
 endinterface
 
@@ -30,9 +28,7 @@ interface JTAG_Instruction_Reg_ifc#(type t);
 
     method Action       test_logic_reset(Bool active);
 
-    method Bit#(1)      tdo();
-    method Action       tdi(Bit#(1) t);
-    interface JTAG_Ctrl_Dn_ifc ctrl;
+    interface IJTAG_ifc scan;
 
 endinterface
 
@@ -86,14 +82,16 @@ module mkJTAGRegR#(t reg_i, JTAG_Reg_Reset#(t) r)(JTAG_Reg_ifc#(t))
     method reg_o = unpack(rHR);
     method wr_o  = rWR; //indicate update after shift
     method cap_o = rCAP; //indicate capture before shift
-    method tdi   = bwTDI._write;
-    method tdo   = rSR[0];
+    interface IJTAG_ifc scan;
+        method tdi   = bwTDI._write;
+        method tdo   = rSR[0];
 
-    interface JTAG_Ctrl_Dn_ifc ctrl;
-        method capture = bwCapture._write;
-        method shift   = bwShift._write;
-        method update  = bwUpdate._write;
-        method sel     = bwSelect._write;
+        interface JTAG_Ctrl_Dn_ifc ctrl;
+            method capture = bwCapture._write;
+            method shift   = bwShift._write;
+            method update  = bwUpdate._write;
+            method sel     = bwSelect._write;
+        endinterface
     endinterface
 endmodule
 
@@ -138,14 +136,16 @@ module mkJTAGInstructionReg#(t capture_value, t reset_value)(JTAG_Instruction_Re
 
     method test_logic_reset = bwTLR._write;
 
-    method tdi = bwTDI._write;
-    method tdo = rSR[0];
+    interface IJTAG_ifc scan;
+        method tdi = bwTDI._write;
+        method tdo = rSR[0];
 
-    interface JTAG_Ctrl_Dn_ifc ctrl;
-        method capture = bwCapture._write;
-        method shift   = bwShift._write;
-        method update  = bwUpdate._write;
-        method sel     = bwSelect._write;
+        interface JTAG_Ctrl_Dn_ifc ctrl;
+            method capture = bwCapture._write;
+            method shift   = bwShift._write;
+            method update  = bwUpdate._write;
+            method sel     = bwSelect._write;
+        endinterface
     endinterface
 
 endmodule

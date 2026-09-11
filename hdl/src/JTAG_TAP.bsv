@@ -143,9 +143,9 @@ module mkJTAG_TAP_Controller#(
     ReadOnly#(Vector#(n, Bool))     sel_crossed         <- mkNullCrossingWire(tck_inv, vSelect);
     ReadOnly#(Bool)                 shift_ir_crossed    <- mkNullCrossingWire(tck_inv, tap_fsm.ctrl.shift_ir);
     ReadOnly#(Bit#(w))              ir_crossed          <- mkNullCrossingWire(tck_inv, jtagIR.reg_o());
-    ReadOnly#(Bit#(1))              ir_tdo_crossed      <- mkNullCrossingWire(tck_inv, jtagIR.tdo());
-    ReadOnly#(Bit#(1))              idc_tdo_crossed     <- mkNullCrossingWire(tck_inv, jtagIDCode.tdo());
-    ReadOnly#(Bit#(1))              byp_tdo_crossed     <- mkNullCrossingWire(tck_inv, jtagBypass.tdo());
+    ReadOnly#(Bit#(1))              ir_tdo_crossed      <- mkNullCrossingWire(tck_inv, jtagIR.scan.tdo());
+    ReadOnly#(Bit#(1))              idc_tdo_crossed     <- mkNullCrossingWire(tck_inv, jtagIDCode.scan.tdo());
+    ReadOnly#(Bit#(1))              byp_tdo_crossed     <- mkNullCrossingWire(tck_inv, jtagBypass.scan.tdo());
     ReadOnly#(Vector#(n, Bit#(1))) tdos_crossed         <- mkNullCrossingWire(tck_inv, read_v_ro(vTDO_up));
     
     /* TDO MUX
@@ -169,30 +169,30 @@ module mkJTAG_TAP_Controller#(
     Bool byp_sel = pack(vSelect) == 0 && jtagIR.reg_o() != tap_cfg.instr_idcode;
 
     //the IR is the only JTAGReg connected to the IR control lines of the TAP FSM
-    mkConnection(jtagIR.ctrl.capture, tap_fsm.ctrl.capture_ir);
-    mkConnection(jtagIR.ctrl.shift, tap_fsm.ctrl.shift_ir);
-    mkConnection(jtagIR.ctrl.update, tap_fsm.ctrl.update_ir);
-    mkConnection(jtagIR.tdi, bwTDI);
+    mkConnection(jtagIR.scan.ctrl.capture, tap_fsm.ctrl.capture_ir);
+    mkConnection(jtagIR.scan.ctrl.shift, tap_fsm.ctrl.shift_ir);
+    mkConnection(jtagIR.scan.ctrl.update, tap_fsm.ctrl.update_ir);
+    mkConnection(jtagIR.scan.tdi, bwTDI);
     mkConnection(jtagIR.test_logic_reset, tap_fsm.ctrl.test_logic_reset);
 
-    mkConnection(jtagBypass.ctrl.capture, tap_fsm.ctrl.capture_dr);
-    mkConnection(jtagBypass.ctrl.shift, tap_fsm.ctrl.shift_dr);
-    mkConnection(jtagBypass.ctrl.update, tap_fsm.ctrl.update_dr);
-    mkConnection(jtagBypass.ctrl.sel, byp_sel);
-    mkConnection(jtagBypass.tdi, bwTDI);
+    mkConnection(jtagBypass.scan.ctrl.capture, tap_fsm.ctrl.capture_dr);
+    mkConnection(jtagBypass.scan.ctrl.shift, tap_fsm.ctrl.shift_dr);
+    mkConnection(jtagBypass.scan.ctrl.update, tap_fsm.ctrl.update_dr);
+    mkConnection(jtagBypass.scan.ctrl.sel, byp_sel);
+    mkConnection(jtagBypass.scan.tdi, bwTDI);
 
-    mkConnection(jtagIDCode.ctrl.capture, tap_fsm.ctrl.capture_dr);
-    mkConnection(jtagIDCode.ctrl.shift, tap_fsm.ctrl.shift_dr);
-    mkConnection(jtagIDCode.ctrl.update, tap_fsm.ctrl.update_dr);
-    mkConnection(jtagIDCode.ctrl.sel, id_sel);
-    mkConnection(jtagIDCode.tdi, bwTDI);
+    mkConnection(jtagIDCode.scan.ctrl.capture, tap_fsm.ctrl.capture_dr);
+    mkConnection(jtagIDCode.scan.ctrl.shift, tap_fsm.ctrl.shift_dr);
+    mkConnection(jtagIDCode.scan.ctrl.update, tap_fsm.ctrl.update_dr);
+    mkConnection(jtagIDCode.scan.ctrl.sel, id_sel);
+    mkConnection(jtagIDCode.scan.tdi, bwTDI);
 
     rule rout;
         rg_ext_tdo <= int_tdo;
     endrule
 
     rule rir;
-        jtagIR.ctrl.sel(True);
+        jtagIR.scan.ctrl.sel(True);
     endrule
 
     if(tap_cfg.debug)
