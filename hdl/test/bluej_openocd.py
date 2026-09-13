@@ -27,6 +27,7 @@ BLUEJ_BUS_ADDR_SHIFT = 38
 BLUEJ_BUS_DATA_SHIFT = 6
 BLUEJ_BUS_STRB_SHIFT = 2
 BLUEJ_BUS_RESP_MASK = 0x3
+BLUEJ_BUS_REQUEST = 0x3
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ def encode_bus_request(addr, *, write=False, data=0, strb=0):
         | ((addr & 0xFFFFFFFF) << BLUEJ_BUS_ADDR_SHIFT)
         | ((data & 0xFFFFFFFF) << BLUEJ_BUS_DATA_SHIFT)
         | ((strb & 0xF) << BLUEJ_BUS_STRB_SHIFT)
+        | BLUEJ_BUS_REQUEST
     )
 
 

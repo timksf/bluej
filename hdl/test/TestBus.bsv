@@ -129,6 +129,7 @@ module [Module] mkTestBus(TestHandler);
         request.addr   = addr;
         request.data   = data;
         request.strb   = strb;
+        request.resp   = REQUEST;
         return request;
     endfunction
 

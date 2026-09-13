@@ -20,9 +20,9 @@ module [Module] mkJTAG2AXI#(Clock axi_clk, Reset axi_rstn)(JTAG2AXIL_ifc#(aw, dw
         AXI4Lite transactions. Supports one outstanding transaction.
     */
 
-    JTAG_BusAdapterCore_ifc#(aw, dw)    i_jtag_bus <- mkJTAG_BusAdapterCore(axi_clk, axi_rstn);
-    AXI4_Lite_Master_Rd#(aw, dw)        i_m_rd     <- mkAXI4_Lite_Master_Rd(1, clocked_by axi_clk, reset_by axi_rstn);
-    AXI4_Lite_Master_Wr#(aw, dw)        i_m_wr     <- mkAXI4_Lite_Master_Wr(1, clocked_by axi_clk, reset_by axi_rstn);
+    JTAG_BusAdapterCore_ifc#(aw, dw) i_jtag_bus <- mkJTAG_BusAdapterCore(axi_clk, axi_rstn);
+    AXI4_Lite_Master_Rd#(aw, dw)     i_m_rd     <- mkAXI4_Lite_Master_Rd(1, clocked_by axi_clk, reset_by axi_rstn);
+    AXI4_Lite_Master_Wr#(aw, dw)     i_m_wr     <- mkAXI4_Lite_Master_Wr(1, clocked_by axi_clk, reset_by axi_rstn);
 
     rule r_request;
         let req <- i_jtag_bus.bus.request.get;
