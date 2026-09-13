@@ -122,8 +122,8 @@ module mkJTAG_BusAdapterCore#(Clock bus_clk, Reset bus_rst)(JTAG_BusAdapterCore_
         jrg_ctrl_i <= response;
     endrule
     
-    interface scan = jrg_bus_ctrl.scan;
-    interface bus           = toGPClient(toGet(f_sync_req), toPut(f_sync_resp));
+    interface scan  = jrg_bus_ctrl.scan;
+    interface bus   = toGPClient(toGet(f_sync_req), toPut(f_sync_resp));
 endmodule
 
 module [JTAGSystem#(n, iw)] mkJTAG_BusAdapter#(JTAGInstruction_t#(iw) instr, Clock bus_clk, Reset bus_rst)(JTAG_BusAdapter_ifc#(aw, dw));
