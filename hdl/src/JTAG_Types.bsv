@@ -3,6 +3,7 @@ package JTAG_Types;
 import Vector :: *;
 import Connectable :: *;
 
+// Controller outputs: one selection bit per target.
 (* always_ready *)
 interface JTAG_Ctrl_Up_ifc#(numeric type n);
     method Bool update;
@@ -12,6 +13,7 @@ interface JTAG_Ctrl_Up_ifc#(numeric type n);
     interface Vector#(n, Bool) select;
 endinterface
 
+// Target control inputs: one selection bit for this target.
 (* always_ready *)
 interface JTAG_Ctrl_Dn_ifc;
     method Action update(Bool b);
@@ -20,6 +22,7 @@ interface JTAG_Ctrl_Dn_ifc;
     method Action sel(Bool b);
 endinterface
 
+// Target scan interface.
 (* always_ready *)
 interface IJTAG_ifc;
     method Bit#(1) tdo();

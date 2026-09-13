@@ -71,7 +71,7 @@ module mkBSCANE2_BlueJ_#(
 
 endmodule
 
-module connect_bscane2_to_bluej#(BSCANE2_ifc bscane2, JTAG_Ctrl_Dn_ifc jtag_target)(Empty);
+module connect_bscane2_ctrl#(BSCANE2_ifc bscane2, JTAG_Ctrl_Dn_ifc jtag_target)(Empty);
 
     // This rule is in the TCK domain.
     rule r_forward_jtag_ctrl;
@@ -81,6 +81,15 @@ module connect_bscane2_to_bluej#(BSCANE2_ifc bscane2, JTAG_Ctrl_Dn_ifc jtag_targ
         jtag_target.sel(bscane2.sel());
     endrule
 
+endmodule
+
+module connect_bscane2_to_target#(BSCANE2_ifc bscane2, IJTAG_ifc target)(Empty);
+    connect_bscane2_ctrl(bscane2, target.ctrl);
+
+    rule r_forward_jtag_data;
+        target.tdi(bscane2.tdi());
+        bscane2.tdo(target.tdo());
+    endrule
 endmodule
 
 module mkBSCAN2JTAG#(BSCANE2_ifc bscan)(BSCAN2JTAG_ifc);

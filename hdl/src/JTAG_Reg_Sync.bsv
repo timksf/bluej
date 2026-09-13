@@ -74,10 +74,7 @@ module mkJTAG_Reg_SyncR#(t reg_i, JTAG_Reg_Reset#(t) r, Clock sysclk, Reset sysr
     method wr_o  = rg_wr_o_out;
     method cap_o = rg_cap_o_out;
 
-    method tdo   = jreg_int.tdo;
-    method tdi   = jreg_int.tdi;
-
-    interface ctrl = jreg_int.ctrl;
+    interface scan = jreg_int.scan;
 
 endmodule
 

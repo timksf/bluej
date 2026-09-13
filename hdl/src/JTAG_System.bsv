@@ -37,12 +37,9 @@ interface JTAGPulseAccess_ifc;
     method Action pulse();
 endinterface
 
-//TODO: instead of this struct, introduce new "IJTAG" interface for internal jtag components
 typedef struct {
     JTAGInstruction_t#(w) instr;
-    ReadOnly#(Bit#(1))   tdo;
-    WriteOnly#(Bit#(1))  tdi;
-    JTAG_Ctrl_Dn_ifc     ctrl;
+    IJTAG_ifc scan;
 } IJTAG_#(numeric type w);
 
 typedef union tagged {
@@ -117,17 +114,17 @@ module [JTAGSystem#(n, w)] jtag_enable_debug();
     addToCollection(new_item);
 endmodule
 
+module [JTAGSystem#(n, w)] jtag_scan_endpoint#(IJTAG_ifc scan, JTAGInstruction_t#(w) instr)(Empty);
+    JTAGSystem_item#(n, w) new_item = tagged IJTAG IJTAG_ {
+        instr: instr,
+        scan: scan
+    };
+    addToCollection(new_item);
+endmodule
+
 module [JTAGSystem#(n, w)] jtag_endpoint#(JTAG_Reg_ifc#(t) jtag_reg, JTAGInstruction_t#(w) instr)(JTAGRegAccess_ifc#(t));
 
-    JTAGSystem_item#(n, w) new_item =
-        tagged IJTAG IJTAG_ {
-            instr: instr,
-            ctrl:  jtag_reg.ctrl,
-            tdo:   as_read_only(jtag_reg.tdo),
-            tdi:   as_write_only(jtag_reg.tdi)
-        };
-
-    addToCollection(new_item);
+    jtag_scan_endpoint(jtag_reg.scan, instr);
 
     method updated if(jtag_reg.wr_o()) = actionvalue
         return jtag_reg.reg_o();
@@ -261,7 +258,7 @@ module [Module] build_jtag_system#(JTAGSystem#(n, w, ifc) jtag_sys, Clock tdo_cl
     Vector#(n, ReadOnly#(Bit#(1)))    tdos   = newVector;
     Vector#(n, JTAGInstruction_t#(w)) instrs = newVector;
     for(Integer i = 0; i < valueof(n); i = i + 1) begin
-        tdos[i] = jtag_regs[i].tdo;
+        tdos[i] = as_read_only(jtag_regs[i].scan.tdo);
         instrs[i] = jtag_regs[i].instr;
     end
 
@@ -284,8 +281,7 @@ module [Module] build_jtag_system#(JTAGSystem#(n, w, ifc) jtag_sys, Clock tdo_cl
     );
 
     for(Integer i = 0; i < valueof(n); i = i + 1) begin
-        jtagConnect(tap.tap_ctrl, jtag_regs[i].ctrl, i);
-        mkConnection(toGet(tap.int_tdi), write_only_to_put(jtag_regs[i].tdi));
+        tapConnect(tap, jtag_regs[i].scan, i);
     end
 
     method tms = tap.tms;
