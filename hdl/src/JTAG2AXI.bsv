@@ -40,6 +40,8 @@ module [Module] mkJTAG2AXI#(Clock axi_clk, Reset axi_rstn)(JTAG2AXIL_ifc#(aw, dw
             });
     endrule
 
+    //mutually exclusive as there is only one outstanding request, removes scheduling warning
+    (* mutually_exclusive="r_write_response,r_read_response" *) 
     rule r_read_response;
         let rsp <- i_m_rd.response.get;
         BusResponseCode_t resp = (rsp.resp == AXI4_Lite_Types::OKAY) ? JTAG_BusAdapter::OKAY : ERROR;
