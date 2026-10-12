@@ -1,5 +1,5 @@
 create_clock -period 10 -name clk_100mhz [get_ports CLK_clk_p]
-create_clock -name jtag_tck -period 100 -waveform {0 25} [get_nets {*bscane2$TCK}]
+create_clock -name jtag_tck -period 100 [get_nets {*bscane2$TCK}]
 
 set_clock_groups -group clk_100mhz -group jtag_tck -asynchronous
 

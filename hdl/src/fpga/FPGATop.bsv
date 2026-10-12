@@ -6,7 +6,7 @@ import Clocks :: *;
 import BlueJ :: *;
 import BlueXLNX :: *;
 
-`define N_LEDS 4
+`define N_LEDS 2
 
 (* always_enabled *)
 interface FPGATest_ifc;

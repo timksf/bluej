@@ -24,3 +24,5 @@ hdl/src/rtl/testing/
 *.hex
 
 vivado*
+
+*.Xil*

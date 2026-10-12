@@ -72,7 +72,8 @@ VERILOG_SIM:=iverilog
 VERILOG_INC:=$(CURDIR)/src/rtl/lib:$(CURDIR)/src/rtl/lib/unisim
 
 # custom TCL flow
-PART=xcku3p-ffvb676-2-e
+#PART=xcku3p-ffvb676-2-e
+PART=xc7a200tfbg484-2
 CONSTRAINTS=$(CURDIR)/src/fpga/bluej_simple.xdc
 SCRIPT=$(CURDIR)/src/fpga/synth.tcl
 
