@@ -314,31 +314,3 @@ library.
 
 ## License
 MIT.
-
-### Scan interface migration
-
-Scan registers (including instruction and synchronized registers) expose an
-`IJTAG_ifc scan`: replace `reg.ctrl`, `reg.tdi`, and `reg.tdo` with
-`reg.scan.ctrl`, `reg.scan.tdi`, and `reg.scan.tdo`. Register access (`reg_o`,
-`wr_o`, `cap_o`) and instruction `test_logic_reset` remain separate.
-
-Bus adapter cores and JTAG-to-AXI interfaces expose `scan` instead of the full
-`jtag_bus_ctrl` or `jtag_ctrl` register. Register a scan-only target in a
-`JTAGSystem` with `jtag_scan_endpoint(adapter.scan, instr)`; `jtag_endpoint(reg,
-instr)` still provides register update access. Collected `IJTAG_` entries now
-contain `instr` and `scan` instead of wrapped TDI/TDO and control fields.
-
-For a direct BSCANE2 connection, use:
-
-```bsv
-connect_bscane2_to_target(bscane2, adapter.scan);
-```
-
-For custom serial chains, rename `connect_bscane2_to_bluej` to
-`connect_bscane2_ctrl` and pass each target's `scan.ctrl`; retain your independent
-TDI/TDO wiring. The full helper composes this control helper with direct TDI/TDO
-forwarding. Neither helper adds clock crossings or resets: retain the existing
-TCK clock and reset setup. Controllers retain their selection vector, while each
-`IJTAG_ifc` target accepts one selection input through `scan.ctrl.sel`.
-
-Downstream repositories must migrate these API uses separately.
