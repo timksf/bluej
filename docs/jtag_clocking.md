@@ -133,6 +133,17 @@ This keeps the TAP behavior spec-like while avoiding a second TDO register after
 
 `hdl/test/bluej_openocd.py` uses this real OpenOCD path by default. Its explicit `--backend bitbang` mode is only a diagnostic tool for isolating socket, sampling, and TDO alignment issues without OpenOCD in the loop.
 
+## System register crossings
+
+`mkJTAG_Reg_Sync` and `mkJTAG_Reg_SyncR` transfer each capture/update event and
+its payload together using `mkSyncFIFOFromCC(1, ...)`. Depth 1 selects the compact
+`SyncFIFO1` implementation; increasing the depth buffers more events at greater
+storage cost. Event spacing must allow for CDC acknowledgement latency. When
+full, hardware drops incoming events and simulation reports fatal overflow.
+
+System reset pauses consumption; TCK reset flushes the FIFO. Readback uses a
+separate synchronized snapshot, which must settle before Capture-DR.
+
 ## Practical Rules
 
 - Use `jtag_set_reg_tdo(True)` for TAPs that should behave like real JTAG hardware.

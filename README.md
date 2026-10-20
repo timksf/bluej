@@ -168,6 +168,12 @@ Library modules and FPGA examples in `hdl/src`:
 | [fpga/FPGATop.bsv](hdl/src/fpga/FPGATop.bsv) | `mkFPGATestSimple` | Controls LED enables and blink timing through a synchronized BSCANE2 USER3 register. |
 | [fpga/FPGATop.bsv](hdl/src/fpga/FPGATop.bsv) | `mkFPGATestSimplestTop` | Exposes a test register on BSCANE2 USER3 and drives LEDs from a free-running counter. |
 
+Synchronized register endpoints transfer events and payloads together through
+`mkSyncFIFOFromCC(1, ...)`. Depth 1 minimizes storage; increase the depth to absorb
+bursts. Allow for CDC acknowledgement latency between events. Full FIFOs drop
+incoming events in hardware and report fatal overflow in simulation. See
+[system register crossings](docs/jtag_clocking.md#system-register-crossings).
+
 ## Bus Adapter
 
 `mkJTAG_BusAdapterCore` exposes a JTAG data register and a typed bus client;

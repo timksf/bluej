@@ -78,7 +78,7 @@ CONSTRAINTS=$(CURDIR)/src/fpga/bluej_simple.xdc
 SCRIPT=$(CURDIR)/src/fpga/synth.tcl
 
 # Public smoke/default FPGA flows
-SMOKE_TESTS ?= TestTAP TestSystemAPI TestBus
+SMOKE_TESTS ?= TestTAP TestSystemAPI TestBus TestJTAGRegSync
 FPGA_TOP_MODULE ?= mkFPGATestSimpleTop
 FPGA_MAIN_MODULE ?= fpga/FPGATop
 
