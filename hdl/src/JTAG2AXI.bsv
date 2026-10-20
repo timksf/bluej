@@ -14,7 +14,7 @@ interface JTAG2AXIL_ifc#(numeric type aw, numeric type dw);
     interface AXI4_Lite_Master_Wr_Fab#(aw, dw) m_axil_wr;
 endinterface
 
-module [Module] mkJTAG2AXI#(Clock axi_clk, Reset axi_rstn)(JTAG2AXIL_ifc#(aw, dw));
+module mkJTAG2AXI#(Clock axi_clk, Reset axi_rstn)(JTAG2AXIL_ifc#(aw, dw));
     /*
         Translates bus requests and responses from a JTAG data scan register into 
         AXI4Lite transactions. Supports one outstanding transaction.

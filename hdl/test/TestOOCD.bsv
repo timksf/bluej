@@ -17,7 +17,6 @@ import ClockUtil :: *;
 `define IR_WIDTH 8
 
 interface MyJTAGSystem_ifc;
-    method ActionValue#(Bit#(32)) user_reg0();
     interface Client#(BusRequest_t#(32, 32), BusResponse_t#(32)) bus;
 endinterface
 
@@ -30,10 +29,8 @@ module [JTAGSystem#(2, `IR_WIDTH)] oocdJTAGSystem#(Clock bus_clk, Reset bus_rst)
     jtag_enable_debug();
 
     Reg#(Bit#(32))                reg0_value <- mkReg('hBEEFAFFE);
-    JTAGRegAccess_ifc#(Bit#(32))  reg0       <- jtag_reg_rw(reg0_value, 'h02);
+    jtag_reg_rw(reg0_value, 'h02);
     JTAG_BusAdapter_ifc#(32, 32)  ifc        <- mkJTAG_BusAdapter('hDE, bus_clk, bus_rst);
-
-    method user_reg0 = reg0.updated;
 
     interface bus = ifc.bus;
 

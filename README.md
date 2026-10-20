@@ -64,6 +64,11 @@ Add `hdl/src`, `dep/bluexlnx/src`, and `dep/bluecsr/src` to the Bluespec search
 path. Projects based on BSVTools can include `BlueJ.mk`, which adds those paths
 and the simulation support files automatically.
 
+Automatic `rw` and `io` endpoints own destination-register writes and return `Empty`.
+For caller-managed updates or side effects, use `jtag_endpoint` (or a `wo` helper)
+and handle its `.updated` method in the caller. I/O endpoints accept a readback
+value independently of the destination register, including constants.
+
 A small JTAG system is constructed in two stages. First, define the endpoints
 and TAP metadata inside a `JTAGSystem` context:
 
@@ -71,7 +76,7 @@ and TAP metadata inside a `JTAGSystem` context:
 import BlueJ :: *;
 
 interface DebugRegs_ifc;
-    method ActionValue#(Bit#(32)) control_updated;
+    method Bit#(32) control;
 endinterface
 
 module [JTAGSystem#(1, 8)] debug_regs(DebugRegs_ifc);
@@ -81,9 +86,9 @@ module [JTAGSystem#(1, 8)] debug_regs(DebugRegs_ifc);
     jtag_rst_to_idcode;
 
     Reg#(Bit#(32)) rg_control <- mkReg(0);
-    JTAGRegAccess_ifc#(Bit#(32)) i_control <- jtag_reg_rw(rg_control, 8'h10);
+    jtag_reg_rw(rg_control, 8'h10);
 
-    method control_updated = i_control.updated;
+    method control = rg_control;
 endmodule
 ```
 
@@ -128,11 +133,13 @@ Library modules and FPGA examples in `hdl/src`:
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_endpoint` | Registers a data-register endpoint at a specified instruction. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_ro` | Adds a read-only data-register endpoint. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_wo` | Adds a write-only data-register endpoint with update notification. |
-| [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_rw` | Adds a read/write endpoint connected to a design register. |
+| [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_rw` | Automatically updates a design register; returns `Empty`. |
+| [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_io` | Captures a separate readback value and automatically writes a destination register; returns `Empty`. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_reg_pulse` | Adds an endpoint that generates a pulse on update. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_sync_reg_ro` | Adds a read-only endpoint synchronized from the system clock domain. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_sync_reg_wo` | Adds a write-only endpoint synchronized to the system clock domain. |
-| [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_sync_reg_rw` | Adds a read/write endpoint connected to a system-clocked design register. |
+| [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_sync_reg_rw` | Automatically updates a system-clocked design register; returns `Empty`. |
+| [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_sync_reg_io` | Synchronizes separate readback and destination-register writes; returns `Empty`. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `jtag_sync_reg_pulse` | Adds an endpoint that delivers update pulses to the system clock domain. |
 | [JTAG_System.bsv](hdl/src/JTAG_System.bsv) | `build_jtag_system` | Builds a pin-level TAP from the collected endpoints and configuration. |
 | [JTAG_BusAdapter.bsv](hdl/src/JTAG_BusAdapter.bsv) | `mkJTAG_BusAdapterCore` | Converts data-register scans into bus requests and returns responses across clock domains. |

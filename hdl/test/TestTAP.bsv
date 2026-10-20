@@ -3,6 +3,7 @@ package TestTAP;
 import GetPut :: *;
 import Vector :: *;
 import Clocks :: *;
+import DReg :: *;
 import StmtFSM :: *;
 import BuildVector :: *;
 import Connectable :: *;
@@ -29,10 +30,20 @@ module [JTAGSystem#(1, `IR_WIDTH)] myJTAGSystem(MyJTAGSystem_ifc);
 
     //we expect this module to be clocked/reset by tck and trst
     Reg#(Bit#(32))                my_reg_value <- mkReg('hDEADBEEF);
-    JTAGRegAccess_ifc#(Bit#(32))  my_reg       <- jtag_reg_rw(my_reg_value, 'h02);
+    Reg#(Bool)                  rg_updated   <- mkDReg(False);
+    JTAG_Reg_ifc#(Bit#(32))       i_jreg_raw   <- mkJTAGReg(my_reg_value);
+    JTAGRegAccess_ifc#(Bit#(32))  my_reg       <- jtag_endpoint(i_jreg_raw, 'h02);
 
-    //blocks if no value loaded into register
-    method myreg_read = my_reg.updated;
+    rule r_update_device_reg;
+        let value <- my_reg.updated();
+        my_reg_value <= value;
+        rg_updated <= True;
+    endrule
+
+    // Blocks when no update is available.
+    method ActionValue#(Bit#(32)) myreg_read() if(rg_updated);
+        return my_reg_value;
+    endmethod
 
 endmodule
 

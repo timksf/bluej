@@ -136,7 +136,7 @@ module [JTAGSystem#(n, w)] jtag_reg_ro#(t reg_i, JTAGInstruction_t#(w) instr)()
     provisos(Bits#(t, tw));
 
     JTAG_Reg_ifc#(t)  jreg    <- mkJTAGReg(reg_i);
-    JTAGRegAccess_ifc#(t) _access <- jtag_endpoint(jreg, instr);
+    jtag_scan_endpoint(jreg.scan, instr);
 
 endmodule
 
@@ -150,19 +150,23 @@ module [JTAGSystem#(n, w)] jtag_reg_wo#(JTAGInstruction_t#(w) instr)(JTAGRegAcce
 
 endmodule
 
-module [JTAGSystem#(n, w)] jtag_reg_rw#(Reg#(t) device_reg, JTAGInstruction_t#(w) instr)(JTAGRegAccess_ifc#(t))
+// Automatic register endpoints own the destination write and return no update accessor.
+module [JTAGSystem#(n, w)] jtag_reg_rw#(Reg#(t) device_reg, JTAGInstruction_t#(w) instr)(Empty)
     provisos(Bits#(t, tw));
 
-    JTAG_Reg_ifc#(t)  jreg    <- mkJTAGReg(device_reg);
-    JTAGRegAccess_ifc#(t) _access <- jtag_endpoint(jreg, instr);
+    jtag_reg_io(device_reg, device_reg, instr);
+
+endmodule
+
+module [JTAGSystem#(n, w)] jtag_reg_io#(t reg_i, Reg#(t) reg_o, JTAGInstruction_t#(w) instr)(Empty)
+    provisos(Bits#(t, tw));
+
+    JTAG_Reg_ifc#(t)  jreg    <- mkJTAGReg(reg_i);
+    jtag_scan_endpoint(jreg.scan, instr);
 
     rule update_device_reg if(jreg.wr_o());
-        device_reg <= jreg.reg_o();
+        reg_o <= jreg.reg_o();
     endrule
-
-    method updated if(jreg.wr_o()) = actionvalue
-        return jreg.reg_o();
-    endactionvalue;
 
 endmodule
 
@@ -181,7 +185,7 @@ module [JTAGSystem#(n, w)] jtag_sync_reg_ro#(t reg_i, JTAGInstruction_t#(w) inst
     provisos(Bits#(t, tw));
 
     JTAG_Reg_ifc#(t)  jreg    <- mkJTAG_Reg_Sync(reg_i, sysclk, sysrst);
-    JTAGRegAccess_ifc#(t) _access <- jtag_endpoint(jreg, instr);
+    jtag_scan_endpoint(jreg.scan, instr);
 
 endmodule
 
@@ -195,19 +199,22 @@ module [JTAGSystem#(n, w)] jtag_sync_reg_wo#(JTAGInstruction_t#(w) instr, Clock 
 
 endmodule
 
-module [JTAGSystem#(n, w)] jtag_sync_reg_rw#(Reg#(t) device_reg, JTAGInstruction_t#(w) instr, Clock sysclk, Reset sysrst)(JTAGRegAccess_ifc#(t))
+module [JTAGSystem#(n, w)] jtag_sync_reg_rw#(Reg#(t) device_reg, JTAGInstruction_t#(w) instr, Clock sysclk, Reset sysrst)(Empty)
     provisos(Bits#(t, tw));
 
-    JTAG_Reg_ifc#(t)  jreg    <- mkJTAG_Reg_Sync(device_reg, sysclk, sysrst);
-    JTAGRegAccess_ifc#(t) _access <- jtag_endpoint(jreg, instr);
+    jtag_sync_reg_io(device_reg, device_reg, instr, sysclk, sysrst);
+
+endmodule
+
+module [JTAGSystem#(n, w)] jtag_sync_reg_io#(t reg_i, Reg#(t) reg_o, JTAGInstruction_t#(w) instr, Clock sysclk, Reset sysrst)(Empty)
+    provisos(Bits#(t, tw));
+
+    JTAG_Reg_ifc#(t)  jreg    <- mkJTAG_Reg_Sync(reg_i, sysclk, sysrst);
+    jtag_scan_endpoint(jreg.scan, instr);
 
     rule update_device_reg if(jreg.wr_o());
-        device_reg <= jreg.reg_o();
+        reg_o <= jreg.reg_o();
     endrule
-
-    method updated if(jreg.wr_o()) = actionvalue
-        return jreg.reg_o();
-    endactionvalue;
 
 endmodule
 
