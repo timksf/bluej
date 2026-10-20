@@ -89,8 +89,8 @@ module [JTAGSystem#(11, `IR_WIDTH)] apiJTAGSystem#(Clock sys_clk, Reset sys_rst)
 endmodule
 
 (* synthesize *)
-module mkAPIDUT#(Clock tdo_clk, Reset tdo_rst, Clock sys_clk, Reset sys_rst)(JTAGSystem_ifc#(APITest_ifc));
-    let jtag_sys <- build_jtag_system(apiJTAGSystem(sys_clk, sys_rst), tdo_clk, tdo_rst);
+module mkAPIDUT#(Clock sys_clk, Reset sys_rst)(JTAGSystem_ifc#(APITest_ifc));
+    let jtag_sys <- build_jtag_system(apiJTAGSystem(sys_clk, sys_rst));
     return jtag_sys;
 endmodule
 
@@ -100,7 +100,7 @@ module [Module] mkTestSystemAPI(TestHandler);
     Clock sys_clk <- exposeCurrentClock;
     Reset sys_rst <- exposeCurrentReset;
 
-    let dut <- mkAPIDUT(sys_clk, sys_rst, sys_clk, sys_rst);
+    let dut <- mkAPIDUT(sys_clk, sys_rst);
 
     Reg#(Bool) started  <- mkReg(False);
     Reg#(Bool) finished <- mkReg(False);

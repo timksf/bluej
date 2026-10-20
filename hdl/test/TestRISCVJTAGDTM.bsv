@@ -29,8 +29,6 @@ endfunction
 
 (* synthesize *)
 module mkRISCVJTAGDUT#(
-    Clock tdo_clk,
-    Reset tdo_rst,
     Clock dmi_clk,
     Reset dmi_rst
 )(JTAGSystem_ifc#(RISCVDTMDevice_ifc#(TestABits)));
@@ -41,7 +39,7 @@ module mkRISCVJTAGDUT#(
         idcode_part: 16'h4567
     };
 
-    let system <- mkRISCVDTM(tap_meta, tdo_clk, tdo_rst, dmi_clk, dmi_rst);
+    let system <- mkRISCVDTM(tap_meta, dmi_clk, dmi_rst);
     return system;
 
 endmodule
@@ -61,10 +59,8 @@ module [Module] mkTestRISCVJTAGDTM(TestHandler);
 
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
-    let tdo_clk = jtag_stim.tdo_clk;
-    let tdo_rst = jtag_stim.tdo_rst;
 
-    let dut <- mkRISCVJTAGDUT(tdo_clk, tdo_rst, dmi_clk, dmi_rst, clocked_by tck, reset_by trst);
+    let dut <- mkRISCVJTAGDUT(dmi_clk, dmi_rst, clocked_by tck, reset_by trst);
 
     mkConnection(toGet(w_tck),              toPut(jtag_stim.ext_tck));
     mkConnection(toGet(w_trst),             toPut(jtag_stim.ext_trst));

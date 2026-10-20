@@ -16,14 +16,14 @@ This note describes the clocking structure used by the BlueJ JTAG test and simul
 
 - `tck_out`: the generated TAP clock.
 - `trst_out`: reset in the `tck_out` domain.
-- `tdo_clk`: inverted `tck_out`, used for falling-edge TDO registration.
+- `tdo_clk`: inverted `tck_out`, used by the shim's return register.
 - `tdo_rst`: reset in the `tdo_clk` domain.
 
 `mkJTAGShim` connects ordinary Bluespec testbenches to that generated JTAG clocking structure. It accepts `ext_tck`, `ext_tms`, and `ext_tdi` in the default testbench clock domain and exposes `int_tms` and `int_tdi` in the generated TCK domain. It also has a registered TDO return path intended for BSV test FSMs that account for that extra delay.
 
-`mkJTAG_TAP_Controller` runs in the `tck_out` domain. Its optional external TDO register, `rg_ext_tdo`, runs in the `tdo_clk` domain. With `reg_tdo=True`, `tap.tdo` is therefore updated on falling TCK.
+`mkJTAG_TAP_Controller` runs in the TCK domain and derives its own inverted clock. Its optional TDO register, `rg_ext_tdo`, is resetless and updates on falling TCK. The output is exposed through a clockless `mkNullCrossingWire`, so callers can connect it directly to pins or simulation observers without exporting the internal clock. This adds no storage; timing analysis must still check the related half-cycle paths.
 
-`mkJTAGTDONullCrossing` is a lightweight observer for an already registered TAP TDO value. It is used by the OpenOCD test path so remote-bitbang reads see the TAP's falling-edge registered TDO without passing through the shim's extra registered TDO crossing.
+The OpenOCD test path observes `tap.tdo` directly, without the shim's extra registered TDO crossing.
 
 `mkJTAG_Driver_OOCD` implements the remote-bitbang socket bridge. Its `JTAG_TDO_Delay#(n)` parameter delays socket responses by simulator cycles, not by extra JTAG shifts. In the current OpenOCD path, one response cycle is used so Verilog/VPI values settle before the socket reply is sent.
 
@@ -45,10 +45,10 @@ flowchart TD
     TDORST["tdo_rst<br/>reset in inverted-TCK domain"]
 
     TAP["mkJTAG_TAP_Controller<br/>clocked_by tck_out"]
-    TDOREG["TDO output register<br/>clocked_by tdo_clk"]
+    TDOREG["TDO output register<br/>internal inverted TCK, no reset"]
 
     OOCD["mkJTAG_Driver_OOCD<br/>default/bus clock domain"]
-    TDONC["mkJTAGTDONullCrossing<br/>tdo_clk to default clock"]
+    TDONC["clockless TDO output<br/>no storage"]
 
     TB -->|"default clock"| EXT
     EXT -->|"ext_tck/ext_tms/ext_tdi bits"| SHIM
@@ -62,10 +62,8 @@ flowchart TD
     TRST -->|"reset_by trst_out"| TAP
     TAP -->|"selected TDO value"| TDOREG
     TDOCLK -->|"clocked_by tdo_clk"| TDOREG
-    TDORST -->|"reset_by tdo_rst"| TDOREG
 
     TDOREG -->|"registered tap.tdo"| TDONC
-    TDOCLK -->|"source clock: tdo_clk"| TDONC
     TB -->|"destination clock"| TDONC
     TDONC -->|"ext_tdo in default clock"| OOCD
 
@@ -87,13 +85,13 @@ flowchart TD
 | `ext_tck` to `tck_out` | `mkUngatedClock` via `setClockValue` | clock generator state | Creates a real Bluespec clock from bit-level JTAG stimulus. |
 | `ext_trst` to `trst_out` | `mkReset` driven by `trst_in` | reset generator state | Produces reset in the generated TCK domain. |
 | `tck_out` to `tdo_clk` | `mkClockInverter` | clock primitive | Provides the falling-edge clock used for TDO updates. |
-| `trst_out` to `tdo_rst` | `mkAsyncReset` into `tdo_clk` | reset synchronizer | Gives the falling-edge TDO register a reset in its own domain. |
+| `trst_out` to `tdo_rst` | `mkAsyncReset` into `tdo_clk` | reset synchronizer | Resets the simulation shim's return register. |
 | `ext_tms` to TAP `tms` | default-domain `Reg`, then `mkNullCrossingWire(tck_out, tms_in)` | one default-domain register | Makes TMS visible to the TAP FSM in the TCK domain. |
 | `ext_tdi` to TAP `tdi` | `mkNullCrossingReg(tck_out, 0)` | crossing register | Makes TDI stable for TCK-domain shift rules. |
 | TAP internal TDO sources to falling-edge mux | `mkNullCrossingWire(tdo_clk, ...)` | no extra register | Lets the falling-edge TDO mux observe TCK-domain shift-register outputs. |
-| TAP external TDO output | `rg_ext_tdo` clocked by `tdo_clk` when `reg_tdo=True` | one falling-edge register | Implements spec-style TDO update timing. |
+| TAP external TDO output | `rg_ext_tdo` clocked by `tdo_clk` when `reg_tdo=True` | one resetless falling-edge register | Implements spec-style TDO update timing. |
 | `mkJTAGShim.int_tdo` to `mkJTAGShim.ext_tdo` | `mkNullCrossingReg(default_clk, 0, clocked_by tdo_clk)` | extra crossing register | Returns TDO to ordinary BSV test FSMs; the tests compensate for this delay. |
-| OpenOCD TDO observation | `mkJTAGTDONullCrossing(tap.tdo, tdo_clk, tdo_rst)` | no extra JTAG-bit storage | Exposes already registered TAP TDO to remote-bitbang without double-registering it. |
+| OpenOCD TDO observation | clockless `tap.tdo` | no extra JTAG-bit storage | Exposes already registered TAP TDO to remote-bitbang without double-registering it. |
 
 ## TAP Timing Model
 
@@ -148,6 +146,6 @@ separate synchronized snapshot, which must settle before Capture-DR.
 
 - Use `jtag_set_reg_tdo(True)` for TAPs that should behave like real JTAG hardware.
 - Keep `mkJTAGShim` for local BSV tests that need generated TCK/reset and testbench-domain stimulus.
-- Use `mkJTAGTDONullCrossing(tap.tdo, tdo_clk, tdo_rst)` for OpenOCD or other remote-bitbang style drivers.
+- Use clockless `tap.tdo` for OpenOCD or other remote-bitbang style drivers.
 - Do not blindly replace registered crossings with null crossings. A null crossing works only when the source value can be read by the crossing rule without depending on a method write in the same cycle.
 - For unrelated system clocks, use real synchronizers such as `mkJTAG_Reg_Sync`, `mkSyncFIFOFromCC`, or `mkSyncFIFOToCC`. The TAP/TDO null crossings here rely on TCK and inverted TCK being generated from the same JTAG stimulus.

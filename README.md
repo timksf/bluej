@@ -92,12 +92,12 @@ module [JTAGSystem#(1, 8)] debug_regs(DebugRegs_ifc);
 endmodule
 ```
 
-Then build the pin-level TAP using a rising-edge TCK clock and an inverted-TCK
-clock for registered TDO:
+Then build the pin-level TAP in the TCK clock/reset domain. The TAP derives
+the falling-edge clock internally; its TDO output register needs no reset:
 
 ```bsv
-module mkDebugTAP#(Clock tdo_clk, Reset tdo_rst)(JTAGSystem_ifc#(DebugRegs_ifc));
-    let system <- build_jtag_system(debug_regs, tdo_clk, tdo_rst);
+module mkDebugTAP(JTAGSystem_ifc#(DebugRegs_ifc));
+    let system <- build_jtag_system(debug_regs);
     return system;
 endmodule
 ```

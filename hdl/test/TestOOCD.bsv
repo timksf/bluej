@@ -37,8 +37,8 @@ module [JTAGSystem#(2, `IR_WIDTH)] oocdJTAGSystem#(Clock bus_clk, Reset bus_rst)
 endmodule
 
 (* synthesize *)
-module mkTAP#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
-    let jtag_sys <- build_jtag_system(oocdJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
+module mkTAP#(Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
+    let jtag_sys <- build_jtag_system(oocdJTAGSystem(bus_clk, bus_rst));
     return jtag_sys;
 endmodule
 
@@ -54,11 +54,8 @@ module [Module] mkTestOOCD(TestHandler);
     
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
-    let tck_inv = jtag_stim.tdo_clk;
-    let trst_inv = jtag_stim.tdo_rst;
 
-    let tap <- mkTAP(tck_inv, trst_inv, bus_clk, bus_rst, clocked_by tck, reset_by trst);
-    let tdo_crossing <- mkJTAGTDONullCrossing(tap.tdo, tck_inv, trst_inv, clocked_by bus_clk, reset_by bus_rst);
+    let tap <- mkTAP(bus_clk, bus_rst, clocked_by tck, reset_by trst);
 
     //test memory connected to bus ifc
     BRAM_Configure bram_cfg = defaultValue;
@@ -77,7 +74,7 @@ module [Module] mkTestOOCD(TestHandler);
     // mkConnection(toGet(wtrst),              toPut(jtag_stim.ext_trst));
     mkConnection(toGet(oocd_driver.ext_tdi),    toPut(jtag_stim.ext_tdi));
     mkConnection(toGet(oocd_driver.ext_tms),    toPut(jtag_stim.ext_tms));
-    mkConnection(toGet(tdo_crossing.ext_tdo),   toPut(oocd_driver.ext_tdo));
+    mkConnection(toGet(tap.tdo),   toPut(oocd_driver.ext_tdo));
     
     mkConnection(toGet(jtag_stim.int_tms),  toPut(tap.tms));
     mkConnection(toGet(jtag_stim.int_tdi),  toPut(tap.tdi));

@@ -66,8 +66,6 @@ endmodule
 
 module [Module] mkRISCVJTAGDebug#(
     JTAG_TAP_Meta_Config_t tap_meta,
-    Clock tdo_clk,
-    Reset tdo_rst,
     Clock debug_clk,
     Reset debug_rst
 )(JTAGSystem_ifc#(RISCVDebugDevice_ifc#(n_harts))) provisos (
@@ -76,9 +74,7 @@ module [Module] mkRISCVJTAGDebug#(
 );
 
     let system <- build_jtag_system(
-        riscv_jtag_debug_default(tap_meta, debug_clk, debug_rst),
-        tdo_clk,
-        tdo_rst
+        riscv_jtag_debug_default(tap_meta, debug_clk, debug_rst)
     );
     return system;
 

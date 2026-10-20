@@ -111,14 +111,11 @@ endmodule
 
 module mkJTAG_TAP_Controller#(
     JTAG_TAP_Config_t#(n, w) tap_cfg,
-    Vector#(n, ReadOnly#(Bit#(1))) vTDO_up,
-    Clock tdo_clk,
-    Reset tdo_rst
+    Vector#(n, ReadOnly#(Bit#(1))) vTDO_up
     )(JTAG_TAP_Controller_ifc#(n)) provisos(Add#(1, a__, w));
 
-    let tck <- exposeCurrentClock;
-    let tck_inv = tdo_clk;
-    let trst_inv = tdo_rst;
+    let i_tck_inv <- mkClockInverter;
+    let tck_inv = i_tck_inv.slowClock;
 
     //IR has to be reset to IDCODE/BYPASS
     //BYPASS has to be identified at least with all 1's
@@ -150,7 +147,7 @@ module mkJTAG_TAP_Controller#(
     
     /* TDO MUX
     */
-    Reg#(Bit#(1)) rg_ext_tdo <- mkRegU(clocked_by tck_inv, reset_by trst_inv);
+    Reg#(Bit#(1)) rg_ext_tdo <- mkRegU(clocked_by tck_inv, reset_by noReset);
 
     Bit#(1) int_tdo = 0;
     //could make vSelect take prio with && pack(sel_crossed) == 0
@@ -206,7 +203,9 @@ module mkJTAG_TAP_Controller#(
             end
         endrule
 
-    method tdo = tap_cfg.reg_tdo ? rg_ext_tdo : int_tdo;
+    ReadOnly#(Bit#(1)) tdo_crossed <- mkNullCrossingWire(noClock, tap_cfg.reg_tdo ? rg_ext_tdo : int_tdo);
+
+    method tdo = tdo_crossed;
     method tdi = bwTDI._write;
     method tms = tap_fsm.tms;
 

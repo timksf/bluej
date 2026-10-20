@@ -38,8 +38,8 @@ module [JTAGSystem#(2, `IR_WIDTH)] myJTAGSystem#(Clock bus_clk, Reset bus_rst)(M
 endmodule
 
 (* synthesize *)
-module mkDUT#(Clock tdo_clk, Reset tdo_rst, Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
-    let jtag_sys <- build_jtag_system(myJTAGSystem(bus_clk, bus_rst), tdo_clk, tdo_rst);
+module mkDUT#(Clock bus_clk, Reset bus_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
+    let jtag_sys <- build_jtag_system(myJTAGSystem(bus_clk, bus_rst));
     return jtag_sys;
 endmodule
 
@@ -59,10 +59,8 @@ module [Module] mkTestBus(TestHandler);
 
     let tck = jtag_stim.tck_out;
     let trst = jtag_stim.trst_out;
-    let tck_inv = jtag_stim.tdo_clk;
-    let trst_inv = jtag_stim.tdo_rst;
 
-    let dut <- mkDUT(tck_inv, trst_inv, bus_clk, bus_rst, clocked_by tck, reset_by trst);
+    let dut <- mkDUT(bus_clk, bus_rst, clocked_by tck, reset_by trst);
 
     //connect TAP controller to stimulus
     mkConnection(toGet(wtck),               toPut(jtag_stim.ext_tck));

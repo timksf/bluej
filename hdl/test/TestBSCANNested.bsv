@@ -48,8 +48,8 @@ module [JTAGSystem#(1, `IR_WIDTH)] myJTAGSystem(MyJTAGSystem_ifc);
 endmodule
 
 (* synthesize *)
-module mkNestedTAP#(Clock tdo_clk, Reset tdo_rst)(JTAGSystem_ifc#(MyJTAGSystem_ifc));
-    let jtag_sys <- build_jtag_system(myJTAGSystem, tdo_clk, tdo_rst);
+module mkNestedTAP(JTAGSystem_ifc#(MyJTAGSystem_ifc));
+    let jtag_sys <- build_jtag_system(myJTAGSystem);
     return jtag_sys;
 endmodule
 
@@ -130,9 +130,7 @@ module [Module] mkTestBSCANNested(TestHandler);
     let bscan_cfg = BSCANE2_Config { p_DISABLE_JTAG: False, p_JTAG_CHAIN: 3 };
     let bscane2 <- mkBSCANE2(bscan_cfg, clocked_by tck);
     let tunnel <- mkBSCAN2JTAG(bscane2, clocked_by bscane2.bscan_tck, reset_by noReset);
-    let nested_tap <- mkNestedTAP(tunnel.tdo_clk, tunnel.tdo_rst, clocked_by tunnel.tck, reset_by tunnel.rst);
-    let tdo_tunnel <- mkNullCrossingWire(bscane2.bscan_tck, nested_tap.tdo,
-                                         clocked_by tunnel.tdo_clk, reset_by tunnel.tdo_rst);
+    let nested_tap <- mkNestedTAP(clocked_by tunnel.tck, reset_by tunnel.rst);
 
     Reg#(Bool) saw_update_tck <- mkReg(False, clocked_by tunnel.tck, reset_by noReset);
 
@@ -153,7 +151,7 @@ module [Module] mkTestBSCANNested(TestHandler);
     mkConnection(toGet(tunnel.tdi), toPut(nested_tap.tdi));
 
     rule forward_nested_tdo;
-        tunnel.tdo(tdo_tunnel);
+        tunnel.tdo(nested_tap.tdo);
     endrule
 
     //this only fires when the user register behind the nested tap is updated

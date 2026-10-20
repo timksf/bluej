@@ -236,7 +236,7 @@ function Put#(t) write_only_to_put(WriteOnly#(t) wo);
     endinterface;
 endfunction
 
-module [Module] build_jtag_system#(JTAGSystem#(n, w, ifc) jtag_sys, Clock tdo_clk, Reset tdo_rst)(JTAGSystem_ifc#(ifc))
+module [Module] build_jtag_system#(JTAGSystem#(n, w, ifc) jtag_sys)(JTAGSystem_ifc#(ifc))
     provisos(Add#(1, a__, w));
 
     let {coll_device_ifc, items} <- getCollection(jtag_sys);
@@ -282,9 +282,7 @@ module [Module] build_jtag_system#(JTAGSystem#(n, w, ifc) jtag_sys, Clock tdo_cl
 
     JTAG_TAP_Controller_ifc#(n) tap <- mkJTAG_TAP_Controller(
         tap_cfg,
-        tdos,
-        tdo_clk,
-        tdo_rst
+        tdos
     );
 
     for(Integer i = 0; i < valueof(n); i = i + 1) begin

@@ -192,8 +192,6 @@ endmodule
 
 module [Module] mkRISCVDTM#(
     JTAG_TAP_Meta_Config_t tap_meta,
-    Clock tdo_clk,
-    Reset tdo_rst,
     Clock dmi_clk,
     Reset dmi_rst
 )(JTAGSystem_ifc#(RISCVDTMDevice_ifc#(abits)))
@@ -204,9 +202,7 @@ module [Module] mkRISCVDTM#(
     );
 
     let system <- build_jtag_system(
-        riscv_dtm_system(tap_meta, dmi_clk, dmi_rst),
-        tdo_clk,
-        tdo_rst
+        riscv_dtm_system(tap_meta, dmi_clk, dmi_rst)
     );
     return system;
 
